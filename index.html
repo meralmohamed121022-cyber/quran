@@ -742,36 +742,28 @@ body.is-android #fingerprint-container {
 </div>
 <script>
     // ✅ ربط كل أحداث الـ HTML - في آخر الكود
+// ✅ ربط كل أحداث الـ HTML - تم إضافة الروابط الناقصة للمصحف
 (function bindUIEvents() {
     // Auth
-    document.getElementById('tab-login')
-        ?.addEventListener('click', () => setMode('login'));
-    document.getElementById('tab-register')
-        ?.addEventListener('click', () => setMode('register'));
-    document.getElementById('auth-enter-btn')
-        ?.addEventListener('click', handleAuth);
-    document.getElementById('auth-pass')
-        ?.addEventListener('keydown', e => { if (e.key === 'Enter') handleAuth(); });
+    document.getElementById('tab-login')?.addEventListener('click', () => setMode('login'));
+    document.getElementById('tab-register')?.addEventListener('click', () => setMode('register'));
+    document.getElementById('auth-enter-btn')?.addEventListener('click', handleAuth);
 
-    // App
-    document.getElementById('logout-btn')
-        ?.addEventListener('click', logout);
-
-    // Nav Tabs
-    document.getElementById('tabActive')
-        ?.addEventListener('click', () => changeView('active'));
-    document.getElementById('tabAzkar')
-        ?.addEventListener('click', () => changeView('azkar'));
-    document.getElementById('tabMushaf')
-        ?.addEventListener('click', () => changeView('mushaf'));
-    document.getElementById('tabFiles')
-        ?.addEventListener('click', () => changeView('files'));
-    document.getElementById('tabHistory')
-        ?.addEventListener('click', () => changeView('history'));
+    // App Navigation Tabs
+    document.getElementById('tabActive')?.addEventListener('click', () => changeView('active'));
+    document.getElementById('tabAzkar')?.addEventListener('click', () => changeView('azkar'));
+    
+    // السطر اللي كان ناقص عشان يفتح قسم المصحف (السجل اللي فوق)
+    document.getElementById('tabMushaf')?.addEventListener('click', () => changeView('mushaf'));
+    
+    document.getElementById('tabFiles')?.addEventListener('click', () => changeView('files'));
+    document.getElementById('tabHistory')?.addEventListener('click', () => changeView('history'));
 
     // Fingerprint
-    document.getElementById('fingerprint-btn')
-        ?.addEventListener('click', incrementSelectedZikr);
+    document.getElementById('fingerprint-btn')?.addEventListener('click', incrementSelectedZikr);
+    
+    // Logout
+    document.getElementById('logout-btn')?.addEventListener('click', logout);
 })();
     const SB_URL = "https://ixzuotmqgdnlrkalwyyg.supabase.co", SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml4enVvdG1xZ2RubHJrYWx3eXlnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU1NDAwMTQsImV4cCI6MjA5MTExNjAxNH0.NrU4rKVfrHWB0x220iIGzr-aXGm_5EljV4CCoYFnojo";
     const _supabase = supabase.createClient(SB_URL, SB_KEY);
@@ -2409,13 +2401,17 @@ async function openMushaf(mode) {
 // ✅ الـ Overlay الرئيسي
 // ============================================================
 function renderMushaf() {
+    // 1. إضافة الستايل المسؤول عن استجابة التصميم وإخفاء الأزرار في الموبايل
     if (!document.getElementById('mushaf-responsive-css')) {
         const s = document.createElement('style');
         s.id = 'mushaf-responsive-css';
         s.textContent = `
+            /* إخفاء شريط التنقل السفلي في الموبايل */
             @media (max-width: 768px) {
-                .mushaf-bottom-nav { display: flex !important; visibility: visible !important; opacity: 1 !important; }
-                .mushaf-zoom-slider { display: block !important; width: 70px !important; margin: 0 !important; }
+                .mushaf-bottom-nav { display: none !important; }
+                /* توسيع منطقة المحتوى لتعويض اختفاء الشريط */
+                #mushaf-page-content { padding-bottom: 20px !important; }
+                .mushaf-zoom-slider { display: block !important; width: 70px !important; }
             }
             .mushaf-toolbar-btn {
                 width:32px; height:32px; flex-shrink:0;
@@ -2455,7 +2451,7 @@ function renderMushaf() {
         display:flex; flex-direction:column; overflow:hidden;
     `;
 
-    // ✅ كل الأزرار بـ id بدون onclick في الـ HTML
+    // الهيدر العلوي
     overlay.innerHTML = `
         <div style="flex-shrink:0;background:var(--dark-blue,#001f3f);
             padding:8px 10px;display:flex;align-items:center;gap:5px;
@@ -2525,38 +2521,38 @@ function renderMushaf() {
             <div style="text-align:center;padding-top:35%;font-size:35px;">⏳</div>
         </div>
 
-        <div class="mushaf-bottom-nav"
+    <div class="mushaf-bottom-nav"
             style="flex-shrink:0;background:var(--dark-blue,#001f3f);padding:10px 12px;
-            display:flex !important;align-items:center;gap:8px;
+            display:flex;align-items:center;gap:8px;
             box-shadow:0 -2px 10px rgba(0,0,0,0.3);z-index:1000;">
-
-            <button id="btn-prev-page" ${currentMushafPage <= 1 ? 'disabled' : ''}
-                style="flex:1;padding:11px;background:rgba(255,255,255,0.1);
-                border:2px solid var(--orange,#ff851b);border-radius:12px;
-                color:white;font-size:20px;cursor:pointer;
-                opacity:${currentMushafPage <= 1 ? '0.4' : '1'};">‹</button>
-
-            <input id="page-jump-input" type="number" min="1" max="604" value="${currentMushafPage}"
-                style="width:70px;text-align:center;padding:9px;border-radius:10px;
-                border:2px solid var(--orange,#ff851b);background:rgba(255,255,255,0.1);
-                color:white;font-size:16px;font-weight:bold;outline:none;">
 
             <button id="btn-next-page" ${currentMushafPage >= 604 ? 'disabled' : ''}
                 style="flex:1;padding:11px;border:none;border-radius:12px;color:white;
                 font-size:20px;cursor:pointer;
                 background:${currentMushafPage >= 604 ? 'rgba(255,255,255,0.15)' : 'var(--orange,#ff851b)'};
-                opacity:${currentMushafPage >= 604 ? '0.4' : '1'};">›</button>
+                opacity:${currentMushafPage >= 604 ? '0.4' : '1'}; order: 1;">‹</button>
+
+            <input id="page-jump-input" type="number" min="1" max="604" value="${currentMushafPage}"
+                style="width:70px;text-align:center;padding:9px;border-radius:10px;
+                border:2px solid var(--orange,#ff851b);background:rgba(255,255,255,0.1);
+                color:white;font-size:16px;font-weight:bold;outline:none; order: 2;">
+
+            <button id="btn-prev-page" ${currentMushafPage <= 1 ? 'disabled' : ''}
+                style="flex:1;padding:11px;background:rgba(255,255,255,0.1);
+                border:2px solid var(--orange,#ff851b);border-radius:12px;
+                color:white;font-size:20px;cursor:pointer;
+                opacity:${currentMushafPage <= 1 ? '0.4' : '1'}; order: 3;">›</button>
 
             <button id="btn-show-bookmarks"
                 style="width:44px;height:44px;flex-shrink:0;background:rgba(255,255,255,0.1);
                 border:2px solid var(--orange,#ff851b);border-radius:50%;font-size:18px;
-                cursor:pointer;display:flex;align-items:center;justify-content:center;">📚</button>
+                cursor:pointer;display:flex;align-items:center;justify-content:center; order: 4;">📚</button>
         </div>
     `;
 
     document.body.appendChild(overlay);
 
-    // ✅ ربط كل الأحداث بـ addEventListener بعد الـ append مباشرة (Android-safe)
+    // ربط الأحداث
     document.getElementById('btn-close-mushaf').addEventListener('click', closeMushaf);
     document.getElementById('btn-view-mode').addEventListener('click', toggleMushafViewMode);
     document.getElementById('btn-show-nav').addEventListener('click', showMushafNav);
@@ -2573,7 +2569,7 @@ function renderMushaf() {
     localStorage.setItem(`mushaf_last_page_${mushafMode}`, currentMushafPage);
     loadPageText(currentMushafPage);
 
-    // ✅ Swipe للتنقل بين الصفحات
+    // التحقق من اللمس للسحب (Swipe) - هذا سيظل يعمل في الموبايل حتى مع اختفاء الأزرار
     setTimeout(() => {
         const pc = document.getElementById('mushaf-page-content');
         if (!pc) return;
@@ -2826,6 +2822,11 @@ function showAyahMenu(surahNum, surahName, ayahNum, previewText, event) {
     leftPos = Math.max(10, Math.min(leftPos, window.innerWidth - menuWidth - 10));
     let topPos = rect.bottom + 5;
 
+    // لو المنيو هتطلع بره الشاشة من تحت، نطلعها فوق الرقم
+    if (topPos + 100 > window.innerHeight) {
+        topPos = rect.top - 110;
+    }
+
     menu.style.cssText = `
         position: fixed; top: ${topPos}px; left: ${leftPos}px;
         width: ${menuWidth}px; background: white; border-radius: 16px;
@@ -2842,10 +2843,18 @@ function showAyahMenu(surahNum, surahName, ayahNum, previewText, event) {
 
     const actions = [
         { icon: '🔖', label: 'حفظ', fn: () => toggleAyahBookmark(surahNum, surahName, ayahNum, previewText) },
-        { icon: '📋', label: 'نسخ', fn: () => {
-                const el = document.getElementById(`ayah-${surahNum}-${ayahNum}`);
-                const textToCopy = el ? el.innerText.replace(/[0-9]/g, '').trim() : previewText;
-                copyAyahText(surahNum, ayahNum, textToCopy);
+        { 
+            icon: '📋', 
+            label: 'نسخ', 
+            fn: () => {
+                const ayahEl = document.getElementById(`ayah-${surahNum}-${ayahNum}`);
+                const textToCopy = ayahEl ? ayahEl.innerText.replace(/[0-9]/g, '').trim() : previewText;
+                // تأكد إن اسم الدالة copyToClipboard مطابق للي عندك
+                if (typeof copyToClipboard === 'function') {
+                    copyToClipboard(textToCopy);
+                } else if (typeof copyAyahText === 'function') {
+                    copyAyahText(surahNum, ayahNum, textToCopy);
+                }
             } 
         },
         { icon: '🔊', label: 'صوت', fn: () => playAyah(surahNum, ayahNum) },
@@ -2854,25 +2863,38 @@ function showAyahMenu(surahNum, surahName, ayahNum, previewText, event) {
 
     actions.forEach(a => {
         const btn = document.createElement('div');
-        btn.style.cssText = `display:flex; flex-direction:column; align-items:center; gap:5px; cursor:pointer; -webkit-tap-highlight-color:transparent;`;
-        btn.innerHTML = `
-            <div style="width:45px; height:45px; background:#f8f9fa; border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:22px; border:1px solid #eee;">${a.icon}</div>
-            <span style="font-size:10px; color:#666; font-weight:bold;">${a.label}</span>`;
+        btn.setAttribute('role', 'button');
+        btn.setAttribute('tabindex', '0');
+        btn.style.cssText = `display:flex; flex-direction:column; align-items:center; gap:5px; cursor:pointer; -webkit-tap-highlight-color:transparent; outline:none;`;
         
-        // ✅ استخدام addEventListener لضمان الاستجابة في الـ WebView
+        btn.innerHTML = `
+            <div style="width:45px; height:45px; background:#f8f9fa; border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:22px; border:1px solid #eee; pointer-events:none;">${a.icon}</div>
+            <span style="font-size:10px; color:#666; font-weight:bold; pointer-events:none;">${a.label}</span>`;
+        
+        // استخدام click للويب و pointerdown للموبايل لضمان السرعة
         btn.addEventListener('click', (e) => {
+            e.preventDefault();
             e.stopPropagation();
-            a.fn();
-            closeAyahMenu();
+            a.fn(); 
+            setTimeout(closeAyahMenu, 200); 
         });
+
+        // ✅ السطر ده هو اللي كان ناقص عشان الايقونات تظهر
         actionsRow.appendChild(btn);
     });
 
     menu.appendChild(actionsRow);
     document.body.appendChild(menu);
 
+    const outsideClick = (e) => {
+        if (!menu.contains(e.target)) {
+            closeAyahMenu();
+            document.removeEventListener('click', outsideClick);
+        }
+    };
+    
     setTimeout(() => {
-        document.addEventListener('click', closeAyahMenu, { once: true });
+        document.addEventListener('click', outsideClick);
     }, 10);
 }
 function closeAyahMenu() {
@@ -2930,17 +2952,27 @@ function goToSearchResult(page, surahNum, ayahNum) {
 // ✅ نافذة الانتقال مع بحث موحد شامل
 // ============================================================
 async function showMushafNav() {
+    // 1. التأكد من جلب البيانات أولاً (لو المصفوفة فاضية استناها)
+    if (!mushafSurahList || mushafSurahList.length === 0) {
+        if (typeof Android !== 'undefined') Android.showToast("جاري تحميل الفهرس... ⏳");
+        await fetchSurahList();
+    }
+
+    // 2. مسح أي لوحة قديمة موجودة
     document.getElementById('mushaf-nav-panel')?.remove();
-    await fetchSurahList();
 
     const panel = document.createElement('div');
     panel.id = 'mushaf-nav-panel';
+    
+    // ✅ رفعنا الـ z-index لأعلى قيمة ممكنة لضمان الظهور فوق المصحف
     panel.style.cssText = `
-        position:fixed;bottom:0;left:0;right:0;z-index:10030;
+        position:fixed;bottom:0;left:0;right:0;
+        z-index:2147483647; 
         background:white;border-radius:25px 25px 0 0;
-        box-shadow:0 -10px 40px rgba(0,0,0,0.4);
+        box-shadow:0 -10px 40px rgba(0,0,0,0.5);
         max-height:85vh;display:flex;flex-direction:column;
-        animation:slideUp 0.3s ease-out;`;
+        animation:slideUp 0.3s ease-out;
+        direction: rtl;`;
 
     if (!document.getElementById('mushaf-nav-style')) {
         const style = document.createElement('style');
@@ -2949,7 +2981,6 @@ async function showMushafNav() {
         document.head.appendChild(style);
     }
 
-    // ✅ بدون أي onclick أو oninput في الـ HTML
     panel.innerHTML = `
         <div style="padding:16px 20px;background:var(--dark-blue,#001f3f);
             border-radius:25px 25px 0 0;flex-shrink:0;
@@ -2994,31 +3025,33 @@ async function showMushafNav() {
 
     document.body.appendChild(panel);
 
-    // ✅ كل الأحداث بـ addEventListener بعد الـ append
-    document.getElementById('nav-close-btn')
-        .addEventListener('click', () => panel.remove());
+    // ✅ ربط الأحداث
+    document.getElementById('nav-close-btn')?.addEventListener('click', () => panel.remove());
 
-    document.getElementById('nav-unified-search')
-        .addEventListener('input', function() { navUnifiedSearch(this.value); });
+    document.getElementById('nav-unified-search')?.addEventListener('input', function() { 
+        navUnifiedSearch(this.value); 
+    });
 
-    document.getElementById('nav-tab-surah')
-        .addEventListener('click', () => switchNavTab('surah'));
-    document.getElementById('nav-tab-juz')
-        .addEventListener('click', () => switchNavTab('juz'));
-    document.getElementById('nav-tab-ayah')
-        .addEventListener('click', () => switchNavTab('ayah'));
+    document.getElementById('nav-tab-surah')?.addEventListener('click', () => switchNavTab('surah'));
+    document.getElementById('nav-tab-juz')?.addEventListener('click', () => switchNavTab('juz'));
+    document.getElementById('nav-tab-ayah')?.addEventListener('click', () => switchNavTab('ayah'));
 
-    // ✅ Event delegation للنتائج الديناميكية
-    document.getElementById('nav-tab-content')
-        .addEventListener('click', (e) => {
-            const item = e.target.closest('[data-navto]');
-            if (!item) return;
-            const p = parseInt(item.dataset.navto);
-            currentMushafPage = p;
-            panel.remove();
-            if (document.getElementById('mushaf-overlay')) renderMushaf();
-            else openMushaf(mushafMode);
-        });
+    // ✅ Event delegation للنتائج
+    document.getElementById('nav-tab-content')?.addEventListener('click', (e) => {
+        const item = e.target.closest('[data-navto]');
+        if (!item) return;
+        const p = parseInt(item.dataset.navto);
+        currentMushafPage = p;
+        panel.remove();
+        
+        // لو المصحف مفتوح حدث الصفحة، لو مقفول افتحه
+        if (document.getElementById('mushaf-overlay')) {
+            loadPageText(p); // تحديث المحتوى فوراً بدل إعادة الرندر كاملة لتوفير الموارد
+            renderMushaf();  // لتحديث الأرقام في الهيدر والفوتر
+        } else {
+            openMushaf(mushafMode || 'reading');
+        }
+    });
 
     setTimeout(() => document.getElementById('nav-unified-search')?.focus(), 350);
 }
@@ -4079,49 +4112,72 @@ async function showTafsir(surah, ayah) {
     }
 }
     initNavBehavior();
- async function copyAyahText(surah, ayah, text) {
-    try {
-        // 1. تحديد النص: لو مبعوت جاهز نستخدمه، لو مش مبعوت نجيبه من الصفحة
-        let textToCopy = text;
-        if (!textToCopy) {
-            const el = document.getElementById(`ayah-${surah}-${ayah}`);
-            // بنشيل الأرقام عشان ننسخ نص الآية فقط
-            textToCopy = el ? el.innerText.replace(/[0-9]/g, '').trim() : '';
-        }
+ // ✅ الدالة الموحدة والنهائية للنسخ - استبدل أي دالة نسخ تانية بيها
 
-        if (!textToCopy) return;
-
-        // 2. محاولة النسخ باستخدام Clipboard API (للمتصفحات الحديثة)
-        if (navigator.clipboard && navigator.clipboard.writeText) {
-            await navigator.clipboard.writeText(textToCopy);
-        } else {
-            // 3. Fallback: الطريقة الكلاسيكية للأجهزة القديمة وبعض نسخ WebView
-            const ta = document.createElement('textarea');
-            ta.value = textToCopy;
-            ta.style.cssText = 'position:fixed;top:0;left:0;width:2em;height:2em;padding:0;border:none;outline:none;boxShadow:none;background:transparent';
-            document.body.appendChild(ta);
-            ta.focus();
-            ta.select();
-            document.execCommand('copy');
-            document.body.removeChild(ta);
-        }
-
-        // 4. إظهار التنبيهات
-        showCustomToast('تم نسخ الآية بنجاح ✅');
-        
-        // لو شغال جوه App أندرويد وفيه واجهة برمجة للـ Toast
-        if (typeof Android !== 'undefined' && Android.showToast) {
-            Android.showToast("تم النسخ ✅");
-        }
-
-    } catch (err) {
-        console.error('Copy failed', err);
-        showCustomToast('❌ فشل النسخ');
+// دالة إظهار رسالة النجاح
+function finishCopy() {
+    showCustomToast('تم نسخ الآية ✅');
+    if (typeof Android !== 'undefined' && Android.showToast) {
+        Android.showToast('تم النسخ ✅');
     }
 }
-// دالة إظهار التنبيه
+
+// ✅ الدالة الموحدة والنهائية للنسخ - استبدل أي دالة نسخ تانية بيها
+// ✅ الدالة الموحدة والنهائية للنسخ - صاروخ للأندرويد
+async function copyToClipboard(text) {
+    if (!text) return;
+
+    console.log("Attempting to copy:", text.substring(0, 20) + "...");
+
+    // 1. الخيار الأول (الأفضل للـ HTTPS والمتصفحات الحديثة)
+    if (navigator.clipboard && window.isSecureContext) {
+        try {
+            await navigator.clipboard.writeText(text);
+            finishCopyAction();
+            return;
+        } catch (err) {
+            console.log("Clipboard API failed, trying fallback...");
+        }
+    }
+
+    // 2. الخطة البديلة (للويب العادي HTTP والـ WebView المستعصي)
+    // السحر هنا إننا هنخلي العنصر "مرئي" لحظياً عشان المتصفح ميرفضش النسخ
+    const textArea = document.createElement("textarea");
+    textArea.value = text;
+    
+    // إعدادات تجعل العنصر موجود لكن غير مرئي للمستخدم
+    textArea.style.cssText = "position:fixed; left:0; top:0; width:1px; height:1px; padding:0; border:none; outline:none; box-shadow:none; background:transparent; z-index:-1;";
+    
+    document.body.appendChild(textArea);
+    textArea.focus();
+    textArea.select();
+    
+    // دعم إضافي للموبايل
+    textArea.setSelectionRange(0, 99999);
+
+    try {
+        const successful = document.execCommand('copy');
+        if (successful) {
+            finishCopyAction();
+        } else {
+            alert("فشل النسخ، يرجى النسخ يدوياً");
+        }
+    } catch (err) {
+        console.error('Fallback copy failed:', err);
+    }
+
+    document.body.removeChild(textArea);
+}
+
+function finishCopyAction() {
+    showCustomToast('تم نسخ الآية ✅');
+    // تنبيه الأندرويد لو شغال من التطبيق
+    if (typeof Android !== 'undefined' && Android.showToast) {
+        Android.showToast('تم النسخ ✅');
+    }
+}
+
 function showCustomToast(msg) {
-    // لو الرسالة مش موجودة في الصفحة، ننشئها
     let toast = document.getElementById('custom-copy-toast');
     if (!toast) {
         toast = document.createElement('div');
@@ -4129,17 +4185,12 @@ function showCustomToast(msg) {
         toast.className = 'copy-toast';
         document.body.appendChild(toast);
     }
-
     toast.innerText = msg;
     toast.classList.add('show');
-
-    // تختفي بعد 2 ثانية
-    setTimeout(() => {
-        toast.classList.remove('show');
-    }, 2000);
+    setTimeout(() => { toast.classList.remove('show'); }, 2000);
 }
 
-// ===== window registrations للـ Android WebView (نسخة نظيفة بدون تكرار) =====
+// ===== window registrations - دي اللي بتخلي المنيو تشوف الدوال =====
 window.openMushaf             = openMushaf;
 window.closeMushaf            = closeMushaf;
 window.renderMushaf           = renderMushaf;
@@ -4156,7 +4207,7 @@ window.toggleMushafViewMode   = toggleMushafViewMode;
 window.showAyahMenu           = showAyahMenu;
 window.closeAyahMenu          = closeAyahMenu;
 window.toggleAyahBookmark     = toggleAyahBookmark;
-window.copyAyahText           = copyAyahText;
+window.copyToClipboard        = copyToClipboard; // ✅ اتأكد إن دي موجودة بالاسم ده
 window.playAyah               = playAyah;
 window.showTafsir             = showTafsir;
 window.showBookmarks          = showBookmarks;
