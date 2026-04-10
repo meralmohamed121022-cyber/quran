@@ -1697,7 +1697,24 @@ if(currentUser) {
     }
     document.getElementById('user-avatar-text').innerHTML = coloredName;
 
-    // تشغيل المصحف فوراً
+    // 🔥 جلب الإعدادات من سوبابيز فوراً عند الدخول لضمان المزامنة الفورية
+    _supabase.from('user_mushaf_settings')
+        .select('*')
+        .eq('owner_name', currentUser)
+        .maybeSingle()
+        .then(({data, error}) => {
+            if(data && !error) {
+                // تحديث الذاكرة المحلية بالبيانات السحابية
+                localStorage.setItem('mushaf_last_page_reading', data.last_page_reading);
+                localStorage.setItem('mushaf_last_page_tahajjud', data.last_page_tahajjud);
+                if (data.last_reciter) currentReciter = data.last_reciter;
+                
+                // إعادة رندر المربعات بالأرقام الحقيقية من السيرفر
+                renderMushafSelector(); 
+            }
+        });
+
+    // تشغيل المصحف مبدئياً بالبيانات الكاش
     renderMushafSelector(); 
 } else { 
     setMode('login'); 
@@ -2225,14 +2242,18 @@ let currentAudio          = null;
 let mushafSurahList       = [];
 let pendingHighlight      = null;
 let ayahPickerSelectedSurah = 1;
-
+let isContinuousPlay = false; // هل التشغيل المتواصل شغال؟
+let stopAtEnd = 'surah'; // الخيارات: 'surah', 'juz', 'page'
 // استبدل المصفوفة دي في كودك يا Mo
+let nextAudio = null; // الكائن اللي هيشيل الآية اللي عليها الدور
+let currentSurahPlaying = null;
 const SURAH_PAGES = [
     1, 2, 50, 77, 106, 128, 151, 177, 187, 208, 221, 235, 249, 255, 262, 267, 282, 293, 305, 312, 322, 332, 342, 350, 359, 367, 377, 385, 396, 404,
     411, 415, 418, 428, 434, 440, 446, 453, 458, 467, 477, 483, 489, 496, 499, 502, 507, 511, 515, 518, 520, 523, 526, 528, 531, 534, 537, 542, 545, 549,
     551, 553, 554, 556, 558, 560, 562, 564, 566, 568, 570, 572, 574, 575, 577, 578, 580, 582, 583, 585, 587, 589, 591, 593, 594, 595, 596, 597, 598, 599,
     600, 601, 601, 602, 602, 603, 603, 604, 604, 604, 600, 601, 601, 602, 602, 603, 603, 604, 604, 604, 604, 604, 604, 604
 ];
+
 const JUZ_NAMES = [
     'الم','سيقول','تلك الرسل','لن تنالوا','والمحصنات',
     'لا يحب الله','وإذا سمعوا','ولو أننا','قال الملأ','واعلموا',
@@ -2241,21 +2262,35 @@ const JUZ_NAMES = [
     'اتل ما أوحي','ومن يقنت','وما لي','فمن أظلم','إليه يرد',
     'حم','قال فما خطبكم','قد سمع الله','تبارك الذي','عم يتساءلون'
 ];
-
-const RECITERS = {
-    'Alafasy_128kbps'                    : '🎙️ العفاسي',
-    'Abdurrahmaan_As-Sudais_192kbps'     : '🎙️ السديس',
-    'Husary_128kbps'                     : '🎙️ الحصري',
-    'Minshawi_Murattal_128kbps'          : '🎙️ المنشاوي مرتل',
-    'Minshawy_Mujawwad_128kbps'          : '🎙️ المنشاوي مجود',
-    'Mohammad_al_Tablaway_128kbps'       : '🎙️ الطبلاوي',
-    'Maher_AlMuaiqly_128kbps'            : '🎙️ ماهر المعيقلي',
-    'Yasser_Ad-Dussary_128kbps'          : '🎙️ ياسر الدوسري',
-    'Nasser_Alqatami_128kbps'            : '🎙️ ناصر القطامي',
-    'Ahmed_ibn_Ali_al-Ajamy_128kbps_NEW' : '🎙️ أحمد العجمي',
-    'AbdulSamad_128kbps'                 : '🎙️ عبد الصمد',
-    'Ibrahim_Akhdar_128kbps'             : '🎙️ إبراهيم الأخضر',
+const RECITERS_SURAH = {
+    'https://archive.org/download/mustafa-khamis-full-quran/': '🎙️ مصطفى خميس',
+    'https://server11.mp3quran.net/hatem/': '🎙️ حاتم فريد الواعر',
+    'https://server12.mp3quran.net/s_said/': '🎙️ سيد سعيد',
+    'https://server12.mp3quran.net/ahmed_hadr/': '🎙️ أحمد ديبان (حدر)'
 };
+// المجموعة الأولى: قراء الآيات (دقة عالية - يظهرون دائماً)
+const RECITERS_AYAH = {
+    'Minshawi_Murattal_128kbps'          : '🎙️ المنشاوي (مرتل)',
+    'Minshawy_Mujawwad_128kbps'         : '🎙️ المنشاوي (مجود)',
+    'Husary_128kbps'                    : '🎙️ الحصري (مرتل)',
+    'Husary_Mujawwad_128kbps'           : '🎙️ الحصري (مجود)',
+    'Abdul_Basit_Mujawwad_128kbps'      : '🎙️ عبد الباسط (مجود)',
+    'AbdulSamad_128kbps'                : '🎙️ عبد الباسط (مرتل)',
+    'Alafasy_128kbps'                   : '🎙️ مشاري العفاسي',
+    'Maher_AlMuaiqly_128kbps'           : '🎙️ ماهر المعيقلي',
+    'Mohammad_al_Tablaway_128kbps'      : '🎙️ محمد محمود الطبلاوي',
+    'Banna_32kbps'                      : '🎙️ محمود علي البنا',
+    'Mustafa_Ismail_48kbps'             : '🎙️ مصطفى إسماعيل',
+    'Yasser_Ad-Dussary_128kbps'         : '🎙️ ياسر الدوسري',
+    'Abdurrahmaan_As-Sudais_192kbps'    : '🎙️ عبد الرحمن السديس',
+    'Saood_ash-Shuraym_128kbps'         : '🎙️ سعود الشريم',
+    'Ahmed_ibn_Ali_al-Ajamy_128kbps_NEW': '🎙️ أحمد العجمي',
+    'Nasser_Alqatami_128kbps'           : '🎙️ ناصر القطامي',
+    'Muhammad_Ayyoob_128kbps'           : '🎙️ محمد أيوب',
+    'Abu_Bakr_Ash-Shaatree_128kbps'     : '🎙️ أبوبكر الشاطري'
+};
+
+// المجموعة الثانية: قراء السور (يظهرون فقط عند تفعيل الأوتوبلاي 🔁)
 
 const JUZ_PAGES = [
      1, 22, 42, 62, 82,102,121,142,162,182,
@@ -2373,24 +2408,27 @@ async function fetchQuranBookmarks() {
 // ============================================================
 async function openMushaf(mode) {
     mushafMode = mode;
-    // إظهار لودر بسيط
     const container = document.getElementById('mushaf-section');
     if(container) container.style.opacity = '0.5';
 
-    await Promise.all([fetchQuranBookmarks(), fetchSurahList()]);
+    // جلب كل البيانات المطلوبة في وقت واحد
+    // ملاحظة: ضفنا جلب الإعدادات (آخر صفحة وآخر شيخ)
+    const [bookmarks, surahs, settingsRes] = await Promise.all([
+        fetchQuranBookmarks(), 
+        fetchSurahList(),
+        _supabase.from('user_mushaf_settings').select('*').eq('owner_name', currentUser).maybeSingle()
+    ]);
 
-    // ✅ البحث عن آخر صفحة مسجلة لهذا المستخدم في هذا الوضع
-    const lastBM = quranBookmarks
-        .filter(b => b.mode === mode)
-        .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0];
+    const settings = settingsRes.data;
 
-    if (lastBM) {
-        currentMushafPage = parseInt(lastBM.page);
-        if (lastBM.ayah_number) {
-            pendingHighlight = { surah: lastBM.surah_number, ayah: lastBM.ayah_number };
-        }
+    if (settings) {
+        // 1. استرجاع آخر شيخ
+        if (settings.last_reciter) currentReciter = settings.last_reciter;
+        
+        // 2. استرجاع آخر صفحة حسب الوضع (قراءة أو تهجد)
+        currentMushafPage = (mode === 'reading') ? settings.last_page_reading : settings.last_page_tahajjud;
     } else {
-        // لو مفيش بوكمارك، نرجع لآخر صفحة فتحها يدوياً
+        // لو مفيش إعدادات في سوبابيز، نعتمد على الـ LocalStorage كخيار احتياطي
         currentMushafPage = parseInt(localStorage.getItem(`mushaf_last_page_${mode}`) || 1);
     }
 
@@ -2401,29 +2439,36 @@ async function openMushaf(mode) {
 // ✅ الـ Overlay الرئيسي
 // ============================================================
 function renderMushaf() {
-    // 1. إضافة الستايل المسؤول عن استجابة التصميم وإخفاء الأزرار في الموبايل
+    // 1. إضافة الستايلات المتطورة للهيدر والزراير
     if (!document.getElementById('mushaf-responsive-css')) {
         const s = document.createElement('style');
         s.id = 'mushaf-responsive-css';
         s.textContent = `
-            /* إخفاء شريط التنقل السفلي في الموبايل */
             @media (max-width: 768px) {
                 .mushaf-bottom-nav { display: none !important; }
-                /* توسيع منطقة المحتوى لتعويض اختفاء الشريط */
-                #mushaf-page-content { padding-bottom: 20px !important; }
+                #mushaf-page-content { padding-bottom: 30px !important; }
                 .mushaf-zoom-slider { display: block !important; width: 70px !important; }
             }
             .mushaf-toolbar-btn {
-                width:32px; height:32px; flex-shrink:0;
-                border-radius:50%; display:flex; align-items:center;
-                justify-content:center; cursor:pointer; font-size:15px;
-                background:rgba(255,255,255,0.1); transition:background 0.2s;
+                width:34px; height:34px; flex-shrink:0;
+                border-radius:10px; display:flex; align-items:center;
+                justify-content:center; cursor:pointer; font-size:16px;
+                background:rgba(255,255,255,0.1); transition:all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+                border: 1px solid rgba(255,255,255,0.05);
             }
-            .mushaf-toolbar-btn:active { background:rgba(255,255,255,0.3) !important; }
+            .mushaf-toolbar-btn:active { transform: scale(0.9); background:rgba(255,255,255,0.3) !important; }
+            
+            /* زرار الإيقاف المميز */
+            #btn-stop-audio {
+                background: rgba(255, 69, 58, 0.25);
+                color: #ff453a;
+                border: 1px solid rgba(255, 69, 58, 0.3);
+                display: none; /* يظهر فقط عند التشغيل */
+            }
             .mobile-zoom-container {
                 display: flex; justify-content: center; align-items: center;
-                background: rgba(255, 255, 255, 0.1); padding: 4px;
-                border-radius: 8px; margin-top: 4px; width: 100%;
+                background: rgba(255, 255, 255, 0.1); padding: 4px 8px;
+                border-radius: 10px; margin-top: 4px; width: 100%;
             }
         `;
         document.head.appendChild(s);
@@ -2443,120 +2488,91 @@ function renderMushaf() {
 
     const overlay = document.createElement('div');
     overlay.id = 'mushaf-overlay';
-    overlay.style.cssText = `
-        position:fixed; top:0; left:0;
-        width:100vw; height:100vh;
-        background:#fdfcf0;
-        z-index:2147483647;
-        display:flex; flex-direction:column; overflow:hidden;
-    `;
+    overlay.style.cssText = `position:fixed; top:0; left:0; width:100vw; height:100vh; background:#fdfcf0; z-index:2147483647; display:flex; flex-direction:column; overflow:hidden;`;
 
-    // الهيدر العلوي
+    // الهيدر العلوي - مع زرار الإيقاف، الفهرس، والأوتوبلاي
     overlay.innerHTML = `
-        <div style="flex-shrink:0;background:var(--dark-blue,#001f3f);
-            padding:8px 10px;display:flex;align-items:center;gap:5px;
-            box-shadow:0 2px 10px rgba(0,0,0,0.3); justify-content:space-between;">
+        <div style="flex-shrink:0; background:var(--dark-blue,#001f3f);
+            padding:10px 12px; display:flex; align-items:center; gap:8px;
+            box-shadow:0 2px 12px rgba(0,0,0,0.4); justify-content:space-between;">
 
             <div id="btn-close-mushaf" class="mushaf-toolbar-btn"
-                style="background:rgba(255,100,100,0.25);color:white;font-size:16px;">✕</div>
+                style="background:rgba(255,80,80,0.3); color:white;">✕</div>
 
-            <div style="flex:1;min-width:0;text-align:center;overflow:hidden;padding:0 2px;">
+            <div style="flex:1; min-width:0; text-align:right; overflow:hidden; padding:0 10px;">
                 <div id="mushaf-surah-title"
-                    style="color:var(--orange,#ff851b);font-weight:bold;
-                    font-size:clamp(10px,3vw,13px);
-                    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+                    style="color:var(--orange,#ff851b); font-weight:bold;
+                    font-size:clamp(12px, 4vw, 16px);
+                    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+                    direction:rtl;">
                     ${mushafMode === 'tahajjud' ? '🌙' : '📖'} جاري التحميل...
                 </div>
                 <div id="mushaf-page-meta"
-                    style="color:white;font-size:clamp(9px,2.5vw,11px);
-                    opacity:0.85;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
-                    ص ${currentMushafPage}/604 • ج ${getJuzFromPage(currentMushafPage)}
+                    style="color:white; font-size:11px; opacity:0.8; direction:rtl;">
+                    ص ${currentMushafPage} • ج ${getJuzFromPage(currentMushafPage)}
                 </div>
             </div>
 
-            <div style="display:flex; flex-direction:column; align-items:center; gap:2px; flex-shrink:0;">
-                <div style="display:flex; align-items:center; gap:4px;">
+            <div style="display:flex; flex-direction:column; align-items:center; gap:4px; flex-shrink:0;">
+                <div style="display:flex; align-items:center; gap:6px;">
+                    <div id="btn-stop-audio" class="mushaf-toolbar-btn">🛑</div>
+
+                    <div id="btn-autoplay" class="mushaf-toolbar-btn" 
+                         style="background:${window.isContinuousPlay ? 'var(--orange,#ff851b)' : 'rgba(255,255,255,0.1)'};" title="تشغيل متواصل">
+                         ${window.isContinuousPlay ? '🔁' : '▶️'}
+                    </div>
                     <div id="btn-view-mode" class="mushaf-toolbar-btn">${mushafViewMode === 'text' ? '🖼️' : '📝'}</div>
                     <div id="btn-show-nav" class="mushaf-toolbar-btn">🗂️</div>
-                    <div id="btn-translation" class="mushaf-toolbar-btn"
-                        style="background:${mushafShowTranslation ? 'var(--orange,#ff851b)' : 'rgba(255,255,255,0.1)'};">🌍</div>
                     <div id="bookmark-btn" class="mushaf-toolbar-btn"
                         style="background:${isPageBookmarked ? 'var(--orange,#ff851b)' : 'rgba(255,255,255,0.1)'};">${isPageBookmarked ? '🔖' : '🤍'}</div>
                 </div>
                 <div class="mobile-zoom-container">
-                    <input id="zoom-range-input" type="range" min="14" max="40" value="${mushafZoom}"
+                    <input id="zoom-range-input" type="range" min="14" max="42" value="${mushafZoom}"
                         class="mushaf-zoom-slider"
-                        style="accent-color:var(--orange,#ff851b); height:18px;">
+                        style="accent-color:var(--orange,#ff851b); height:16px;">
                 </div>
             </div>
         </div>
 
-        <div style="flex-shrink:0;background:#001f3f;padding:6px 10px;display:flex;gap:6px;align-items:center;min-width:0;">
-            <input id="mushaf-search-input" type="text" placeholder="🔍 بحث..."
-                style="flex:1;min-width:0;width:0;padding:7px 10px;border-radius:20px;
-                border:1px solid var(--orange,#ff851b);background:rgba(255,255,255,0.1);
-                color:white;font-size:clamp(11px,3vw,13px);direction:rtl;outline:none;
+        <div style="flex-shrink:0; background:#001f3f; padding:8px 12px; display:flex; gap:8px; align-items:center; min-width:0;">
+            <input id="mushaf-search-input" type="text" placeholder="🔍 بحث في الآيات..."
+                style="flex:1; min-width:0; padding:9px 14px; border-radius:12px;
+                border:1.5px solid var(--orange,#ff851b); background:rgba(255,255,255,0.08);
+                color:white; font-size:14px; direction:rtl; outline:none;
                 font-family:'Amiri Quran',serif;">
 
             <div id="btn-reciter-picker"
-                style="flex-shrink:0;width:clamp(44px,22vw,90px);padding:6px;border-radius:8px;
-                border:1px solid var(--orange,#ff851b);background:#002d5a;color:white;
-                font-size:11px;cursor:pointer;display:flex;align-items:center;gap:2px;
-                overflow:hidden;box-sizing:border-box;">
-                <span style="flex-shrink:0;">🎙️</span>
-                <span id="current-reciter-label"
-                    style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;flex:1;">
-                    ${RECITERS[currentReciter]?.replace('🎙️ ', '') || 'القارئ'}
+                style="flex-shrink:0; min-width:100px; width:auto; padding:6px 12px; border-radius:10px;
+                border:1.5px solid var(--orange,#ff851b); background:#002d5a; color:white;
+                font-size:12px; cursor:pointer; display:flex; align-items:center; gap:6px;
+                justify-content:center; white-space:nowrap; box-sizing:border-box;">
+                <span>🎙️</span>
+                <span id="current-reciter-label" style="font-weight:bold;">
+                    ${(RECITERS_AYAH[currentReciter] || RECITERS_SURAH[currentReciter] || 'اختر القارئ').replace('🎙️ ', '')}
                 </span>
             </div>
         </div>
 
-        <div id="mushaf-search-results"
-            style="display:none;flex-shrink:0;max-height:220px;overflow-y:auto;
-            background:white;border-bottom:2px solid var(--orange,#ff851b);z-index:1000;"></div>
+        <div id="mushaf-search-results" style="display:none; flex-shrink:0; max-height:220px; overflow-y:auto; background:white; border-bottom:3px solid var(--orange,#ff851b); z-index:1000;"></div>
 
-        <div id="mushaf-page-content"
-            style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;
-            padding:15px;direction:rtl;background:#fdfcf0;">
-            <div style="text-align:center;padding-top:35%;font-size:35px;">⏳</div>
+        <div id="mushaf-page-content" style="flex:1; overflow-y:auto; -webkit-overflow-scrolling:touch; padding:20px 15px; direction:rtl; background:#fdfcf0;">
+            <div style="text-align:center; padding-top:40%; font-size:40px;">⏳</div>
         </div>
 
-    <div class="mushaf-bottom-nav"
-            style="flex-shrink:0;background:var(--dark-blue,#001f3f);padding:10px 12px;
-            display:flex;align-items:center;gap:8px;
-            box-shadow:0 -2px 10px rgba(0,0,0,0.3);z-index:1000;">
-
-            <button id="btn-next-page" ${currentMushafPage >= 604 ? 'disabled' : ''}
-                style="flex:1;padding:11px;border:none;border-radius:12px;color:white;
-                font-size:20px;cursor:pointer;
-                background:${currentMushafPage >= 604 ? 'rgba(255,255,255,0.15)' : 'var(--orange,#ff851b)'};
-                opacity:${currentMushafPage >= 604 ? '0.4' : '1'}; order: 1;">‹</button>
-
-            <input id="page-jump-input" type="number" min="1" max="604" value="${currentMushafPage}"
-                style="width:70px;text-align:center;padding:9px;border-radius:10px;
-                border:2px solid var(--orange,#ff851b);background:rgba(255,255,255,0.1);
-                color:white;font-size:16px;font-weight:bold;outline:none; order: 2;">
-
-            <button id="btn-prev-page" ${currentMushafPage <= 1 ? 'disabled' : ''}
-                style="flex:1;padding:11px;background:rgba(255,255,255,0.1);
-                border:2px solid var(--orange,#ff851b);border-radius:12px;
-                color:white;font-size:20px;cursor:pointer;
-                opacity:${currentMushafPage <= 1 ? '0.4' : '1'}; order: 3;">›</button>
-
-            <button id="btn-show-bookmarks"
-                style="width:44px;height:44px;flex-shrink:0;background:rgba(255,255,255,0.1);
-                border:2px solid var(--orange,#ff851b);border-radius:50%;font-size:18px;
-                cursor:pointer;display:flex;align-items:center;justify-content:center; order: 4;">📚</button>
+        <div class="mushaf-bottom-nav" style="flex-shrink:0; background:var(--dark-blue,#001f3f); padding:12px; display:flex; align-items:center; gap:10px; box-shadow:0 -3px 12px rgba(0,0,0,0.4); z-index:1000;">
+            <button id="btn-next-page" style="flex:1; padding:12px; border:none; border-radius:12px; color:white; font-size:22px; cursor:pointer; font-weight:bold; background:var(--orange,#ff851b); order: 1;">‹</button>
+            <input id="page-jump-input" type="number" min="1" max="604" value="${currentMushafPage}" style="width:75px; text-align:center; padding:10px; border-radius:10px; border:2px solid var(--orange,#ff851b); background:rgba(255,255,255,0.1); color:white; font-size:17px; font-weight:bold; outline:none; order: 2;">
+            <button id="btn-prev-page" style="flex:1; padding:12px; background:rgba(255,255,255,0.1); border:2px solid var(--orange,#ff851b); border-radius:12px; color:white; font-size:22px; cursor:pointer; font-weight:bold; order: 3;">›</button>
+            <button id="btn-show-bookmarks" style="width:48px; height:48px; flex-shrink:0; background:rgba(255,255,255,0.1); border:2px solid var(--orange,#ff851b); border-radius:50%; font-size:20px; cursor:pointer; display:flex; align-items:center; justify-content:center; order: 4;">📚</button>
         </div>
     `;
 
     document.body.appendChild(overlay);
 
-    // ربط الأحداث
+    // --- ربط الأحداث ---
     document.getElementById('btn-close-mushaf').addEventListener('click', closeMushaf);
     document.getElementById('btn-view-mode').addEventListener('click', toggleMushafViewMode);
-    document.getElementById('btn-show-nav').addEventListener('click', showMushafNav);
-    document.getElementById('btn-translation').addEventListener('click', toggleTranslation);
+    document.getElementById('btn-show-nav').addEventListener('click', showMushafNav); // الفهرس هنا ✅
     document.getElementById('bookmark-btn').addEventListener('click', togglePageBookmark);
     document.getElementById('btn-reciter-picker').addEventListener('click', showReciterPicker);
     document.getElementById('btn-prev-page').addEventListener('click', () => changeMushafPage(-1));
@@ -2566,25 +2582,50 @@ function renderMushaf() {
     document.getElementById('mushaf-search-input').addEventListener('input', function() { mushafFuzzySearch(this.value); });
     document.getElementById('page-jump-input').addEventListener('change', function() { jumpMushafPage(this.value); });
 
+    // ربط زرار الإيقاف 🛑
+    document.getElementById('btn-stop-audio').addEventListener('click', function() {
+        stopAudio();
+        this.style.display = 'none';
+        document.querySelectorAll('[id^="play-btn-"]').forEach(b => b.innerHTML = '▶️');
+        window.currentPlayingSurah = null;
+    });
+
+    // ربط زر التشغيل المتواصل الذكي
+    document.getElementById('btn-autoplay').addEventListener('click', function() {
+        window.isContinuousPlay = !window.isContinuousPlay;
+        
+        // لو قفلنا الأوتوبلاي وكان فيه صوت سورة شغال، نوقفه
+        if (!window.isContinuousPlay && currentAudio && !currentAudio.paused) {
+            stopAudio();
+            document.getElementById('btn-stop-audio').style.display = 'none';
+            document.querySelectorAll('[id^="play-btn-"]').forEach(b => b.innerHTML = '▶️');
+        }
+
+        // تحويل القارئ للقائمة المناسبة
+        if (!window.isContinuousPlay && RECITERS_SURAH[currentReciter]) {
+            currentReciter = 'Minshawi_Murattal_128kbps';
+            const lbl = document.getElementById('current-reciter-label');
+            if (lbl) lbl.innerText = 'المنشاوي (مرتل)';
+        }
+        
+        this.innerHTML = window.isContinuousPlay ? '🔁' : '▶️';
+        this.style.background = window.isContinuousPlay ? 'var(--orange,#ff851b)' : 'rgba(255,255,255,0.1)';
+        
+        if (document.getElementById('reciter-panel')) showReciterPicker();
+    });
+
     localStorage.setItem(`mushaf_last_page_${mushafMode}`, currentMushafPage);
     loadPageText(currentMushafPage);
 
-    // التحقق من اللمس للسحب (Swipe) - هذا سيظل يعمل في الموبايل حتى مع اختفاء الأزرار
+    // منطق السحب (Swipe)
     setTimeout(() => {
         const pc = document.getElementById('mushaf-page-content');
         if (!pc) return;
-        let sx = 0, sy = 0;
-        pc.addEventListener('touchstart', e => {
-            sx = e.touches[0].clientX;
-            sy = e.touches[0].clientY;
-        }, { passive: true });
+        let sx = 0;
+        pc.addEventListener('touchstart', e => sx = e.touches[0].clientX, { passive: true });
         pc.addEventListener('touchend', e => {
             const dx = e.changedTouches[0].clientX - sx;
-            const dy = Math.abs(e.changedTouches[0].clientY - sy);
-            if (Math.abs(dx) > 70 && dy < 90) {
-                if (dx < 0) changeMushafPage(1);
-                else changeMushafPage(-1);
-            }
+            if (Math.abs(dx) > 70) dx > 0 ? changeMushafPage(1) : changeMushafPage(-1);
         }, { passive: true });
     }, 250);
 }
@@ -3579,50 +3620,70 @@ async function goToAyahFromSearch(surahNum, ayahNum) {
 // ============================================================
 function showReciterPicker() {
     document.getElementById('reciter-panel')?.remove();
+    document.getElementById('reciter-backdrop')?.remove();
+
+    const backdrop = document.createElement('div');
+    backdrop.id = 'reciter-backdrop';
+    backdrop.style.cssText = `position:fixed;top:0;left:0;right:0;bottom:0;z-index:2147483646;background:rgba(0,0,0,0.2);`;
+
     const panel = document.createElement('div');
     panel.id = 'reciter-panel';
-    panel.style.cssText = `position:fixed;bottom:0;left:0;right:0;z-index:10040;
-        background:white;border-radius:20px 20px 0 0;
-        box-shadow:0 -5px 30px rgba(0,0,0,0.4);
-        max-height:60vh;display:flex;flex-direction:column;`;
+    panel.style.cssText = `position:fixed;bottom:0;left:0;right:0;z-index:2147483647;background:white;border-radius:20px 20px 0 0;max-height:65vh;display:flex;flex-direction:column;direction:rtl;`;
 
-    // ✅ بدون أي onclick أو oninput
+    // 1. تجهيز القائمة المدمجة
+    let allReciters = { ...RECITERS_AYAH, ...RECITERS_SURAH };
+    let entries = Object.entries(allReciters);
+
+    // 2. منطق الترتيب الذكي (Sorting)
+    entries.sort((a, b) => {
+        const keyA = a[0];
+        const keyB = b[0];
+        const isASurah = RECITERS_SURAH.hasOwnProperty(keyA);
+        const isBSurah = RECITERS_SURAH.hasOwnProperty(keyB);
+
+        if (window.isContinuousPlay) {
+            // لو وضع السور (🔁) شغال: حط بتوع السور فوق
+            if (isASurah && !isBSurah) return -1;
+            if (!isASurah && isBSurah) return 1;
+        } else {
+            // لو وضع الآيات (▶️) شغال: حط بتوع الآيات فوق
+            if (!isASurah && isBSurah) return -1;
+            if (isASurah && !isBSurah) return 1;
+        }
+        return 0; // لو الاتنين نفس النوع سيب الترتيب زي ما هو
+    });
+
+    let statusNotice = window.isContinuousPlay ? "الأولوية لقراء السور الكاملة" : "الأولوية لقراء التحديد الدقيق";
+
     panel.innerHTML = `
-        <div style="padding:15px 20px;background:var(--dark-blue,#001f3f);
-            border-radius:20px 20px 0 0;flex-shrink:0;
-            display:flex;align-items:center;justify-content:space-between;">
-            <span style="color:var(--orange,#ff851b);font-weight:bold;font-size:16px;">🎙️ اختر الشيخ</span>
-            <div id="reciter-close-btn"
-                style="color:white;font-size:22px;cursor:pointer;">✕</div>
+        <div style="padding:15px 20px;background:#001f3f;border-radius:20px 20px 0 0;flex-shrink:0;display:flex;align-items:center;justify-content:space-between;">
+            <div>
+                <span style="color:#ff851b;font-weight:bold;font-size:16px;">🎙️ اختر الشيخ</span>
+                <div style="color:white; font-size:10px; opacity:0.7; margin-top:2px;">${statusNotice}</div>
+            </div>
+            <div id="reciter-close-btn" style="color:white;font-size:22px;cursor:pointer;width:30px;text-align:center;">✕</div>
         </div>
-        <div style="padding:10px 12px;flex-shrink:0;border-bottom:1px solid #eee;">
-            <input id="reciter-search-input" type="text" placeholder="🔍 ابحث عن شيخ..."
-                style="width:100%;padding:8px 12px;border-radius:10px;
-                border:2px solid var(--orange,#ff851b);font-size:14px;
-                direction:rtl;outline:none;box-sizing:border-box;">
+        <div style="padding:10px 12px;flex-shrink:0;border-bottom:1px solid #eee;background:#fdfcf0;">
+            <input id="reciter-search-input" type="text" placeholder="🔍 ابحث عن شيخ..." style="width:100%;padding:10px 12px;border-radius:10px;border:2px solid #ff851b;font-size:14px;direction:rtl;outline:none;box-sizing:border-box;">
         </div>
-        <div id="reciter-list" style="flex:1;overflow-y:auto;padding:8px;">
-            ${buildReciterList(Object.entries(RECITERS))}
+        <div id="reciter-list" style="flex:1;overflow-y:auto;padding:8px;background:white;-webkit-overflow-scrolling:touch;">
+            ${buildReciterList(entries)}
         </div>`;
 
+    document.body.appendChild(backdrop);
     document.body.appendChild(panel);
 
-    // ✅ كل الأحداث بـ addEventListener
-    document.getElementById('reciter-close-btn')
-        .addEventListener('click', () => panel.remove());
-
-    document.getElementById('reciter-search-input')
-        .addEventListener('input', function() { filterReciters(this.value); });
-
-    // ✅ Event delegation على القائمة
-    document.getElementById('reciter-list')
-        .addEventListener('click', (e) => {
-            const item = e.target.closest('[data-reciter-key]');
-            if (!item) return;
-            selectReciter(item.dataset.reciterKey);
-        });
+    const close = () => { panel.remove(); backdrop.remove(); };
+    backdrop.addEventListener('click', close);
+    document.getElementById('reciter-close-btn').addEventListener('click', close);
+    document.getElementById('reciter-search-input').addEventListener('input', function() {
+        filterReciters(this.value, allReciters);
+    });
+    document.getElementById('reciter-list').addEventListener('click', (e) => {
+        const item = e.target.closest('[data-reciter-key]');
+        if (item) { selectReciter(item.dataset.reciterKey); close(); }
+    });
 }
-
 function buildReciterList(entries) {
     // ✅ data-reciter-key بدل onclick
     return entries.map(([k, v]) => `
@@ -3648,37 +3709,244 @@ function filterReciters(query) {
 }
 function selectReciter(key) {
     currentReciter = key;
-    const label = document.getElementById('current-reciter-label');
-    if (label) label.textContent = RECITERS[key].replace('🎙️ ','');
-    document.getElementById('reciter-panel')?.remove();
-    stopAudio();
-}
+    
+    // حفظ الاختيار في الجهاز عشان ميرجعش للافتراضي كل شوية
+    localStorage.setItem('mushaf_current_reciter', key);
 
+    // تحديث النص في زرار اختيار القارئ
+    const label = document.getElementById('current-reciter-label');
+    if (label) {
+        // بنجيب الاسم من أي قائمة من الاتنين
+        const name = RECITERS_AYAH[key] || RECITERS_SURAH[key];
+        label.innerText = name ? name.replace('🎙️ ', '') : 'اختر القارئ';
+    }
+
+    // إغلاق لوحة الاختيار والخلفية
+    document.getElementById('reciter-panel')?.remove();
+    document.getElementById('reciter-backdrop')?.remove();
+
+    if (typeof Android !== 'undefined') Android.showToast("تم اختيار القارئ بنجاح ✅");
+}
 // ============================================================
 // ✅ تشغيل الصوت
 // ============================================================
-function playAyah(surah, ayahNum) {
+async function playAyah(surah, ayahNum) {
     const btn = document.getElementById(`play-btn-${surah}-${ayahNum}`);
-    if (currentAudio && !currentAudio.paused) {
+    const ayahKey = `${surah}-${ayahNum}`;
+    
+    // إيقاف الصوت لو ضغطت على حاجة شغالة
+    if (currentAudio && !currentAudio.paused && (window.currentPlayingAyah === ayahKey || window.currentPlayingSurah === surah)) {
         stopAudio();
-        document.querySelectorAll('[id^="play-btn-"]').forEach(b => b.innerHTML='▶️');
+        document.querySelectorAll('[id^="play-btn-"]').forEach(b => b.innerHTML = '▶️');
         return;
     }
+    
     stopAudio();
-    const s   = String(surah).padStart(3,'0');
-    const a   = String(ayahNum).padStart(3,'0');
-    currentAudio = new Audio(`https://everyayah.com/data/${currentReciter}/${s}${a}.mp3`);
-    currentAudio.play().catch(() => {
-        if(btn){btn.innerHTML='❌';setTimeout(()=>{if(btn)btn.innerHTML='▶️';},2000);}
+    const sStr = String(surah).padStart(3, '0');
+    const aStr = String(ayahNum).padStart(3, '0');
+    if (btn) btn.innerHTML = '⏳';
+
+    // 💡 فحص نوع القارئ: هل هو رابط (سورة) ولا معرف (آية)؟
+    const isLink = currentReciter.startsWith("http");
+
+    if (isLink) {
+        // 1. نظام السور الكاملة (مصطفى خميس، سيد سعيد، إلخ)
+        window.currentPlayingSurah = surah;
+        window.currentPlayingAyah = null;
+        
+        // جرب السيرفرات المتاحة للسور
+        const servers = ["server8", "server11", "server12", "server16", "server6"];
+        tryServers(0, servers, sStr, surah, btn);
+    } else {
+        // 2. نظام الآيات الدقيق (المنشاوي، الحصري، إلخ)
+        window.currentPlayingAyah = ayahKey;
+        window.currentPlayingSurah = null;
+        
+        const ayahUrl = `https://everyayah.com/data/${currentReciter}/${sStr}${aStr}.mp3`;
+        const mirrorUrl = `https://mirrors.quranicaudio.com/everyayah/${currentReciter}/${sStr}${aStr}.mp3`;
+        
+        playSingle(ayahUrl, mirrorUrl, surah, ayahNum, btn);
+    }
+}
+
+// دالة تشغيل السور الكاملة مع تبديل السيرفرات
+function tryServers(idx, servers, sStr, surah, btn) {
+    if (idx >= servers.length) {
+        if (btn) btn.innerHTML = '⚠️';
+        return;
+    }
+    // تغيير السيرفر في الرابط
+    let url = currentReciter.replace(/server\d+/, servers[idx]) + `${sStr}.mp3`;
+    if (currentReciter.includes("archive.org")) url = currentReciter + `${sStr}.mp3`;
+
+    const audio = new Audio(url);
+    const timeout = setTimeout(() => { audio.pause(); tryServers(idx + 1, servers, sStr, surah, btn); }, 5000);
+
+    audio.play().then(() => {
+        clearTimeout(timeout);
+        currentAudio = audio;
+        document.querySelectorAll(`[id^="play-btn-${surah}-"]`).forEach(b => b.innerHTML = '⏸️');
+        setupEndEvents(audio, surah, 1, true);
+    }).catch(() => {
+        clearTimeout(timeout);
+        tryServers(idx + 1, servers, sStr, surah, btn);
     });
-    if(btn) btn.innerHTML='⏸️';
-    currentAudio.onended=()=>{if(btn)btn.innerHTML='▶️';currentAudio=null;};
-    currentAudio.onerror=()=>{
-        if(btn){btn.innerHTML='❌';setTimeout(()=>{if(btn)btn.innerHTML='▶️';},2000);}
-        currentAudio=null;
+}
+
+// دالة تشغيل الآيات المنفصلة
+function playSingle(url, mirror, surah, ayah, btn) {
+    currentAudio = new Audio(url);
+    currentAudio.play().then(() => {
+        if (btn) btn.innerHTML = '⏸️';
+        setupEndEvents(currentAudio, surah, ayah, false);
+    }).catch(() => {
+        // جرب السيرفر البديل للآيات
+        currentAudio = new Audio(mirror);
+        currentAudio.play().then(() => {
+            if (btn) btn.innerHTML = '⏸️';
+            setupEndEvents(currentAudio, surah, ayah, false);
+        }).catch(() => { if (btn) btn.innerHTML = '❌'; });
+    });
+}
+
+// دالة التحكم في نهاية الصوت (التشغيل المتواصل)
+function setupEndEvents(audio, sNum, aNum, isFull) {
+    audio.onended = () => {
+        document.querySelectorAll('[id^="play-btn-"]').forEach(b => b.innerHTML = '▶️');
+        if (window.isContinuousPlay) {
+            if (isFull) playAyah(sNum + 1, 1); // سورة تجيب سورة
+            else playNextAyahAuto(sNum, aNum); // آية تجيب آية بدقة
+        }
     };
 }
 
+// --- وظيفة تشغيل السورة الكاملة (للقراء الجدد) ---
+function tryPlayingSurah(idx, servers, sStr, surah, btn) {
+    if (idx >= servers.length) {
+        finalError(btn, "❌ الملف غير متاح");
+        return;
+    }
+
+    let currentUrl = currentReciter.replace(/server\d+/, servers[idx]) + `${sStr}.mp3`;
+    const audio = new Audio(currentUrl);
+    const timeout = setTimeout(() => { audio.pause(); tryPlayingSurah(idx + 1, servers, sStr, surah, btn); }, 6000);
+
+    audio.play().then(() => {
+        clearTimeout(timeout);
+        currentAudio = audio;
+        document.querySelectorAll(`[id^="play-btn-${surah}-"]`).forEach(b => b.innerHTML = '⏸️');
+        setupEvents(audio, surah, 1, true);
+    }).catch(() => {
+        clearTimeout(timeout);
+        tryPlayingSurah(idx + 1, servers, sStr, surah, btn);
+    });
+}
+
+// --- وظيفة تشغيل آية محددة (للقراء القدامى بدقة) ---
+function playSingleAyah(url, mirror, surah, ayah, btn) {
+    currentAudio = new Audio(url);
+    currentAudio.play().then(() => {
+        if (btn) btn.innerHTML = '⏸️';
+        setupEvents(currentAudio, surah, ayah, false);
+    }).catch(() => {
+        currentAudio = new Audio(mirror);
+        currentAudio.play().then(() => {
+            if (btn) btn.innerHTML = '⏸️';
+            setupEvents(currentAudio, surah, ayah, false);
+        }).catch(() => finalError(btn, "❌ الآية غير متاحة"));
+    });
+}
+
+// --- إعداد الأحداث ---
+function setupEvents(audio, sNum, aNum, isFull) {
+    audio.onended = () => {
+        document.querySelectorAll(`[id^="play-btn-"]`).forEach(b => b.innerHTML = '▶️');
+        if (window.isContinuousPlay) {
+            if (isFull) playAyah(sNum + 1, 1); // لو سورة، انقل للسورة اللي بعدها
+            else playNextAyahAuto(sNum, aNum); // لو آية، انقل للآية اللي بعدها
+        }
+    };
+}
+
+function finalError(btn, msg) {
+    if (btn) { btn.innerHTML = '⚠️'; setTimeout(() => btn.innerHTML = '▶️', 2000); }
+    if (typeof Android !== 'undefined') Android.showToast(msg);
+}
+// دالة لتحديث أيقونات الصفحة عشان تورينا إن السورة شغالة
+function updateAudioIcons(surah) {
+    // بما إن السورة كاملة شغالة، ممكن نخلي كل زراير السورة دي "⏸️"
+    document.querySelectorAll(`[id^="play-btn-${surah}-"]`).forEach(b => {
+        b.innerHTML = '⏸️';
+    });
+}
+// 🔄 دالة التحميل المسبق (Buffering) - بتشتغل في صمت
+async function preloadNextAyah(surah, ayah) {
+    let nS = surah, nA = ayah + 1;
+    const currentSurahData = mushafSurahList.find(s => s.number === surah);
+    
+    if (nA > (currentSurahData?.numberOfAyahs || 0)) {
+        nS++; nA = 1;
+        if (nS > 114) return;
+    }
+
+    const s = String(nS).padStart(3, '0');
+    const a = String(nA).padStart(3, '0');
+    
+    // بنجهز الرابط في كائن صوت منفصل ونحمله في الذاكرة
+    nextAudio = new Audio(`https://everyayah.com/data/${currentReciter}/${s}${a}.mp3`);
+    nextAudio.preload = "auto";
+    nextAudio.load();
+    console.log(`Buffered next: ${nS}:${nA}`);
+}
+// ✅ دالة الانتقال التلقائي للآية التالية بناءً على النطاق (سورة/جزء)
+async function playNextAyahAuto(surah, ayah) {
+    let nextSurah = surah;
+    let nextAyah = ayah + 1;
+
+    // الحصول على بيانات السورة الحالية لمعرفة عدد آياتها
+    const currentSurahData = mushafSurahList.find(s => s.number === surah);
+    const maxAyahs = currentSurahData ? currentSurahData.numberOfAyahs : 0;
+
+    if (nextAyah > maxAyahs) {
+        // السورة خلصت! نشوف هنوقف ولا هنكمل
+        if (window.stopAtEnd === 'surah') {
+            window.isContinuousPlay = false;
+            if (typeof Android !== 'undefined') Android.showToast("تم ختم السورة ✅");
+            return;
+        }
+        
+        // لو هنكمل للجزء أو المصحف
+        nextSurah++;
+        nextAyah = 1;
+        
+        if (nextSurah > 114) {
+            window.isContinuousPlay = false;
+            return;
+        }
+    }
+
+    // التحقق من الصفحة: لو الآية الجاية في صفحة جديدة، لازم نقلب الصفحة الأول
+    try {
+        const res = await fetch(`https://api.alquran.cloud/v1/ayah/${nextSurah}:${nextAyah}`);
+        const json = await res.json();
+        
+        if (json.code === 200) {
+            const nextPage = json.data.page;
+            
+            if (nextPage !== currentMushafPage) {
+                // اقلب الصفحة
+                currentMushafPage = nextPage;
+                renderMushaf();
+                // استنى ثانية لحد ما الصفحة تحمل وبعدين شغل الصوت
+                setTimeout(() => playAyah(nextSurah, nextAyah), 1200);
+            } else {
+                playAyah(nextSurah, nextAyah);
+            }
+        }
+    } catch (e) {
+        window.isContinuousPlay = false;
+    }
+}
 function stopAudio() {
     if(currentAudio){currentAudio.pause();currentAudio.src='';currentAudio=null;}
 }
@@ -3848,11 +4116,30 @@ function showBookmarks() {
 // ✅ الصح
 function closeMushaf() {
     stopAudio();
+    
+    // 1. إزالة كل اللوحات المفتوحة
     ['mushaf-overlay','bookmarks-panel','mushaf-nav-panel',
-     'reciter-panel','ayah-context-menu'].forEach(id =>
+     'reciter-panel','ayah-context-menu'].forEach(id => 
         document.getElementById(id)?.remove()
     );
+    
     pendingHighlight = null;
+
+    // 2. 🔥 التحديث الفوري للأرقام اللي برا بمجرد القفل
+    const lastReading = localStorage.getItem('mushaf_last_page_reading') || 1;
+    const lastTahajjud = localStorage.getItem('mushaf_last_page_tahajjud') || 1;
+
+    // بنبحث عن الـ Span اللي فيه كلمة "آخر صفحة" جوه كل كارت وبنحدثه
+    const readingLabel = document.querySelector('#card-reading span:last-child');
+    const tahajjudLabel = document.querySelector('#card-tahajjud span:last-child');
+
+    if (readingLabel) readingLabel.innerText = `آخر صفحة: ${lastReading}`;
+    if (tahajjudLabel) tahajjudLabel.innerText = `آخر صفحة: ${lastTahajjud}`;
+    
+    // 3. تأكيد المزامنة مع سوبابيز (احتياطي)
+    if (typeof syncMushafSettings === 'function') {
+        syncMushafSettings();
+    }
 }
 
 function toggleTranslation() {
@@ -3865,12 +4152,11 @@ function changeMushafPage(dir) {
     if (p < 1 || p > 604) return;
     currentMushafPage = p;
 
-    // ✅ حفظ فوري في المتصفح
     localStorage.setItem(`mushaf_last_page_${mushafMode}`, p);
-
-    renderMushaf();
+    
+    // يفضل تنادي loadPageText مباشرة لو عايز سرعة، أو renderMushaf لو عايز تحديث كامل للهيدر
+    renderMushaf(); 
 }
-
 function jumpMushafPage(val) {
     const p = parseInt(val);
     if (isNaN(p) || p < 1 || p > 604) return; // تأمين كامل
@@ -4189,7 +4475,105 @@ function showCustomToast(msg) {
     toast.classList.add('show');
     setTimeout(() => { toast.classList.remove('show'); }, 2000);
 }
+async function saveMushafSettings() {
+    if (!currentUser) return;
+    
+    const settings = {
+        owner_name: currentUser,
+        last_page_reading: parseInt(localStorage.getItem('mushaf_last_page_reading')) || 1,
+        last_page_tahajjud: parseInt(localStorage.getItem('mushaf_last_page_tahajjud')) || 1,
+        last_reciter: currentReciter
+    };
 
+    // استخدام upsert عشان لو الاسم موجود يعدل، لو مش موجود يضيف
+    await _supabase.from('user_mushaf_settings').upsert(settings);
+}
+async function refreshHomeSettings() {
+    const { data } = await _supabase
+        .from('user_mushaf_settings')
+        .select('*')
+        .eq('owner_name', currentUser)
+        .maybeSingle();
+
+    if (data) {
+        localStorage.setItem('mushaf_last_page_reading', data.last_page_reading);
+        localStorage.setItem('mushaf_last_page_tahajjud', data.last_page_tahajjud);
+        currentReciter = data.last_reciter; // حفظ الشيخ عالمياً
+        renderMushafSelector(); // إعادة رسم المربعات بالأرقام الجديدة
+    }
+}
+async function syncMushafSettings() {
+    if (!currentUser) return;
+
+    const lastPageReading = (mushafMode === 'reading') ? currentMushafPage : (parseInt(localStorage.getItem('mushaf_last_page_reading')) || 1);
+    const lastPageTahajjud = (mushafMode === 'tahajjud') ? currentMushafPage : (parseInt(localStorage.getItem('mushaf_last_page_tahajjud')) || 1);
+
+    // تحديث الـ LocalStorage فوراً عشان الواجهة الرئيسية بتعتمد عليه
+    localStorage.setItem('mushaf_last_page_reading', lastPageReading);
+    localStorage.setItem('mushaf_last_page_tahajjud', lastPageTahajjud);
+
+    // تحديث الأرقام في المربعات الملونة فوراً في الخلفية
+    const readingLabel = document.querySelector('#card-reading span:last-child');
+    const tahajjudLabel = document.querySelector('#card-tahajjud span:last-child');
+    if (readingLabel) readingLabel.innerText = `آخر صفحة: ${lastPageReading}`;
+    if (tahajjudLabel) tahajjudLabel.innerText = `آخر صفحة: ${lastPageTahajjud}`;
+
+    // الحفظ في سوبابيز
+    await _supabase.from('user_mushaf_settings').upsert({
+        owner_name: currentUser,
+        last_page_reading: lastPageReading,
+        last_page_tahajjud: lastPageTahajjud,
+        last_reciter: currentReciter,
+        updated_at: new Date().toISOString()
+    });
+}
+async function playNextAyah(surah, ayah) {
+    let nextSurah = surah;
+    let nextAyah = ayah + 1;
+
+    // جلب معلومات السورة الحالية عشان نعرف عدد آياتها
+    const currentSurahInfo = mushafSurahList.find(s => s.number === surah);
+    
+    if (nextAyah > currentSurahInfo.numberOfAyahs) {
+        // السورة خلصت!
+        if (stopAtEnd === 'surah') {
+            isContinuousPlay = false;
+            if (typeof Android !== 'undefined') Android.showToast("تمت السورة ✅");
+            return;
+        }
+        
+        // لو مكملين (للجزء مثلاً)
+        nextSurah++;
+        nextAyah = 1;
+        
+        // لو خلصنا المصحف كله
+        if (nextSurah > 114) { isContinuousPlay = false; return; }
+        
+        // التحقق من "الجزء" لو المود هو جزء
+        if (stopAtEnd === 'juz') {
+            const oldJuz = getJuzFromPage(currentMushafPage);
+            // هنحتاج نتأكد من الصفحة الجديدة للآية الجاية
+            // ده لوجيك متقدم شوية، بس كبداية خلينا في السورة
+        }
+    }
+
+    // الانتقال للصفحة الجديدة لو الآية في صفحة تانية
+    try {
+        const res = await fetch(`https://api.alquran.cloud/v1/ayah/${nextSurah}:${nextAyah}`);
+        const json = await res.json();
+        if (json.code === 200) {
+            if (json.data.page !== currentMushafPage) {
+                currentMushafPage = json.data.page;
+                renderMushaf(); // نحدث الصفحة
+                // ننتظر الرندر يخلص وبعدين نشغل
+                setTimeout(() => playAyah(nextSurah, nextAyah), 1000);
+            } else {
+                playAyah(nextSurah, nextAyah);
+            }
+        }
+    } catch (e) { isContinuousPlay = false; }
+}
+// نادي refreshHomeSettings() في الـ init بتاع التطبيق
 // ===== window registrations - دي اللي بتخلي المنيو تشوف الدوال =====
 window.openMushaf             = openMushaf;
 window.closeMushaf            = closeMushaf;
