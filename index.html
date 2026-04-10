@@ -72,16 +72,27 @@
 
     </div>
 <script>
+    // 1. إعدادات قاعدة البيانات (الكي سليم ومعاك تمام)
     const SB_URL = "https://ixzuotmqgdnlrkalwyyg.supabase.co";
     const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml4enVvdG1xZ2RubHJrYWx3eXlnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU1NDAwMTQsImV4cCI6MjA5MTExNjAxNH0.NrU4rKVfrHWB0x220iIGzr-aXGm_5EljV4CCoYFnojo";
     const _supabase = supabase.createClient(SB_URL, SB_KEY);
 
-    // ✅ طريقة ذكية لجلب اليوزر من الرابط أو الـ LocalStorage
+    // 2. ✅ الطريقة الذكية المحدثة: قراءة اليوزر من الرابط (URL Parameter)
     const urlParams = new URLSearchParams(window.location.search);
-    let currentUser = urlParams.get('user') || localStorage.getItem('mouser') || "Mohamed Kholeif";
+    const userFromLink = urlParams.get('user');
 
-    console.log("Mushaf working for:", currentUser);
+    // المنطق هنا: لو اللينك فيه يوزر خده (ده اللي بيحصل لما يفتح جوه موقعك)
+    // لو مفيش، دور في الـ LocalStorage (لو فاتحه لوحده)
+    // لو مفيش خالص حط اسمك كاحتياطي
+    let currentUser = userFromLink || localStorage.getItem('mouser') || "Mohamed Kholeif";
 
+    console.log("✅ Mushaf Linked Successfully to User:", currentUser);
+
+    // 3. تأمين خروج المصحف (اختياري بس هيفيدك)
+    // لو اليوزر جاي من الموقع الأساسي، خزن اسمه في المتصفح احتياطي
+    if (userFromLink) {
+        localStorage.setItem('mouser', userFromLink);
+    }
 // ============================================================
 // ✅ متغيرات المصحف
 // ============================================================
