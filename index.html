@@ -2820,74 +2820,59 @@ function showAyahMenu(surahNum, surahName, ayahNum, previewText, event) {
     const menu = document.createElement('div');
     menu.id = 'ayah-context-menu';
 
-    // حساب موضع العنصر اللي اتضغط عليه
     const rect = event.target.getBoundingClientRect();
     const menuWidth = 220;
-    
-    // حساب الموضع ليكون فوق الآية أو في منتصف الشاشة لو الآية قريبة من الحواف
     let leftPos = rect.left + (rect.width / 2) - (menuWidth / 2);
     leftPos = Math.max(10, Math.min(leftPos, window.innerWidth - menuWidth - 10));
-    
-    // جعل القائمة تظهر أسفل الرقم مباشرة
     let topPos = rect.bottom + 5;
 
     menu.style.cssText = `
-        position: fixed; 
-        top: ${topPos}px; 
-        left: ${leftPos}px;
-        width: ${menuWidth}px; 
-        background: white; 
-        border-radius: 16px;
-        box-shadow: 0 10px 40px rgba(0,0,0,0.5);
-        border: 2px solid var(--orange, #ff851b); 
-        z-index: 2147483647; /* أعلى من الـ overlay */
-        overflow: hidden; 
-        animation: modalPop 0.2s ease-out; 
-        direction: rtl;
-    `;
+        position: fixed; top: ${topPos}px; left: ${leftPos}px;
+        width: ${menuWidth}px; background: white; border-radius: 16px;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.5); border: 2px solid var(--orange, #ff851b); 
+        z-index: 2147483647; overflow: hidden; animation: modalPop 0.2s ease-out; direction: rtl;`;
 
-    // رأس القائمة
     const header = document.createElement('div');
-    header.style.cssText = `padding:8px; background:var(--dark-blue, #001f3f);
-        color:white; font-family:'Amiri Quran', serif; font-size:13px; text-align:center;`;
+    header.style.cssText = `padding:8px; background:var(--dark-blue, #001f3f); color:white; font-family:'Amiri Quran', serif; font-size:13px; text-align:center;`;
     header.textContent = `${surahName} • آية ${ayahNum}`;
     menu.appendChild(header);
 
-    // صف الأزرار
     const actionsRow = document.createElement('div');
     actionsRow.style.cssText = `display:flex; justify-content:space-evenly; align-items:center; padding:15px 10px;`;
 
     const actions = [
-        { icon: '🔖', label: 'حفظ', fn: () => { toggleAyahBookmark(surahNum, surahName, ayahNum, previewText); closeAyahMenu(); } },
-        { icon: '📋', label: 'نسخ', fn: () => { copyAyahText(surahNum, ayahNum); closeAyahMenu(); } },
-        { icon: '🔊', label: 'صوت', fn: () => { playAyah(surahNum, ayahNum); closeAyahMenu(); } },
-        { icon: '🌐', label: 'تفسير', fn: () => { showTafsir(surahNum, ayahNum); closeAyahMenu(); } },
+        { icon: '🔖', label: 'حفظ', fn: () => toggleAyahBookmark(surahNum, surahName, ayahNum, previewText) },
+        { icon: '📋', label: 'نسخ', fn: () => {
+                const el = document.getElementById(`ayah-${surahNum}-${ayahNum}`);
+                const textToCopy = el ? el.innerText.replace(/[0-9]/g, '').trim() : previewText;
+                copyAyahText(surahNum, ayahNum, textToCopy);
+            } 
+        },
+        { icon: '🔊', label: 'صوت', fn: () => playAyah(surahNum, ayahNum) },
+        { icon: '🌐', label: 'تفسير', fn: () => showTafsir(surahNum, ayahNum) },
     ];
 
     actions.forEach(a => {
         const btn = document.createElement('div');
-        btn.style.cssText = `
-            display:flex; flex-direction:column; align-items:center; gap:5px; cursor:pointer;
-            transition: transform 0.1s; -webkit-tap-highlight-color:transparent;
-        `;
+        btn.style.cssText = `display:flex; flex-direction:column; align-items:center; gap:5px; cursor:pointer; -webkit-tap-highlight-color:transparent;`;
         btn.innerHTML = `
-            <div style="width:45px; height:45px; background:#f8f9fa; border-radius:12px; 
-                display:flex; align-items:center; justify-content:center; font-size:22px; 
-                border:1px solid #eee; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">${a.icon}</div>
-            <span style="font-size:10px; color:#666; font-weight:bold;">${a.label}</span>
-        `;
+            <div style="width:45px; height:45px; background:#f8f9fa; border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:22px; border:1px solid #eee;">${a.icon}</div>
+            <span style="font-size:10px; color:#666; font-weight:bold;">${a.label}</span>`;
         
-        btn.onclick = (e) => { e.stopPropagation(); a.fn(); };
+        // ✅ استخدام addEventListener لضمان الاستجابة في الـ WebView
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            a.fn();
+            closeAyahMenu();
+        });
         actionsRow.appendChild(btn);
     });
 
     menu.appendChild(actionsRow);
     document.body.appendChild(menu);
 
-    // إغلاق عند الضغط خارج المنيو
     setTimeout(() => {
-        const closer = () => { closeAyahMenu(); document.removeEventListener('click', closer); };
-        document.addEventListener('click', closer);
+        document.addEventListener('click', closeAyahMenu, { once: true });
     }, 10);
 }
 function closeAyahMenu() {
@@ -3997,21 +3982,23 @@ async function renderBookmarksPreview() {
     }
 }
 async function showTafsir(surah, ayah) {
-    // ✅ الـ ID الصح
+    // إزالة قائمة الخيارات أولاً
     document.getElementById('ayah-context-menu')?.remove();
 
+    // إنشاء لودر بـ z-index أعلى من المصحف (2147483647)
     const loader = document.createElement('div');
     loader.id = 'tafsir-loader';
     loader.style.cssText = `
-        position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);
-        z-index:100000;background:white;padding:20px;border-radius:15px;
-        box-shadow:0 0 20px rgba(0,0,0,0.2);direction:rtl;text-align:center;
-        font-size:14px;color:var(--dark-blue,#001f3f);`;
-    loader.textContent = '⏳ جاري تحميل التفسير...';
+        position:fixed; top:50%; left:50%; transform:translate(-50%,-50%);
+        z-index:2147483647; background:white; padding:25px; border-radius:15px;
+        box-shadow:0 0 30px rgba(0,0,0,0.3); direction:rtl; text-align:center;
+        font-size:16px; color:var(--dark-blue,#001f3f); border:2px solid var(--orange);
+    `;
+    loader.innerHTML = '⏳ جاري تحميل التفسير...';
     document.body.appendChild(loader);
 
     try {
-        const res  = await fetch(`https://api.alquran.cloud/v1/ayah/${surah}:${ayah}/ar.jalalayn`);
+        const res = await fetch(`https://api.alquran.cloud/v1/ayah/${surah}:${ayah}/ar.jalalayn`);
         const json = await res.json();
         loader.remove();
 
@@ -4022,115 +4009,110 @@ async function showTafsir(surah, ayah) {
 
         const tafsirText = json.data.text;
 
-        // ✅ Fallback بدون openArtModal لو مش موجودة
-        if (typeof openArtModal !== 'function') {
+        // التحقق من وجود دالة المودال الفني
+        if (typeof openArtModal === 'function') {
+            openArtModal(`تفسير الآية ${ayah}`, '📖', '', tafsirText, () => {}, 'text');
+            
+            // تعديل محتوى المودال ليناسب النص الطويل والـ z-index
+            setTimeout(() => {
+                const modalOverlay = document.getElementById('artModal');
+                if (modalOverlay) modalOverlay.style.zIndex = "2147483647"; // التأكد أنه فوق المصحف
+
+                const input = document.getElementById('artModalInput');
+                if (input) {
+                    const p = document.createElement('p');
+                    p.style.cssText = `
+                        direction:rtl; text-align:right; font-size:18px; 
+                        line-height:1.8; color:#333; padding:15px; 
+                        max-height:350px; overflow-y:auto; margin:0;
+                        font-family:'Amiri Quran', serif;
+                    `;
+                    p.innerText = tafsirText;
+                    input.parentNode.replaceChild(p, input);
+                }
+                const confirmBtn = document.getElementById('artModalConfirm');
+                if (confirmBtn) confirmBtn.textContent = '✅ فهمت';
+            }, 50);
+        } else {
+            // Fallback: إنشاء مودال مخصص لو الدالة مش موجودة
             const overlay = document.createElement('div');
             overlay.id = 'tafsir-overlay';
             overlay.style.cssText = `
-                position:fixed;top:0;left:0;width:100vw;height:100vh;
-                background:rgba(0,0,0,0.6);z-index:200000;
-                display:flex;align-items:center;justify-content:center;
-                padding:16px;box-sizing:border-box;`;
+                position:fixed; top:0; left:0; width:100vw; height:100vh;
+                background:rgba(0,0,0,0.7); z-index:2147483647;
+                display:flex; align-items:center; justify-content:center;
+                padding:20px; box-sizing:border-box; backdrop-filter:blur(4px);
+            `;
 
             const box = document.createElement('div');
             box.style.cssText = `
-                background:white;border-radius:15px;padding:20px;
-                width:100%;max-width:500px;max-height:80vh;
-                overflow-y:auto;direction:rtl;`;
+                background:white; border-radius:20px; padding:20px;
+                width:100%; max-width:450px; max-height:80vh;
+                overflow-y:auto; direction:rtl; border-bottom:8px solid var(--orange);
+                box-shadow:0 20px 40px rgba(0,0,0,0.4); animation:modalPop 0.3s ease;
+            `;
 
-            const title = document.createElement('div');
-            title.style.cssText = `font-weight:bold;color:var(--dark-blue,#001f3f);
-                margin-bottom:12px;font-size:16px;text-align:center;`;
-            title.textContent = `📖 تفسير الجلالين • آية ${ayah}`;
+            box.innerHTML = `
+                <div style="font-weight:bold; color:var(--dark-blue); margin-bottom:15px; 
+                    font-size:18px; text-align:center; border-bottom:1px solid #eee; padding-bottom:10px;">
+                    📖 تفسير الجلالين • آية ${ayah}
+                </div>
+                <p style="font-size:17px; line-height:1.8; color:#333; margin-bottom:20px; font-family:'Amiri Quran', serif;">
+                    ${tafsirText}
+                </p>
+                <button id="close-tafsir-btn" style="
+                    width:100%; padding:12px; background:var(--orange); color:white;
+                    border:none; border-radius:12px; font-size:16px; cursor:pointer; font-weight:bold;
+                ">تم ✅</button>
+            `;
 
-            const body = document.createElement('p');
-            body.style.cssText = `font-size:15px;line-height:1.9;color:#333;margin:0 0 16px;`;
-            body.textContent = tafsirText;
-
-            const closeBtn = document.createElement('button');
-            closeBtn.style.cssText = `
-                width:100%;padding:12px;background:var(--orange,#ff851b);
-                color:white;border:none;border-radius:10px;
-                font-size:15px;cursor:pointer;font-weight:bold;`;
-            closeBtn.textContent = '✅ تم';
-
-            // ✅ addEventListener بدل onclick
-            closeBtn.addEventListener('click', () => overlay.remove());
-            overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
-
-            box.appendChild(title);
-            box.appendChild(body);
-            box.appendChild(closeBtn);
             overlay.appendChild(box);
             document.body.appendChild(overlay);
-            return;
+
+            document.getElementById('close-tafsir-btn').onclick = () => overlay.remove();
+            overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
         }
 
-        // لو openArtModal موجودة
-        openArtModal(`تفسير الآية ${ayah}`, '📖', '', tafsirText, () => {}, 'text');
-        setTimeout(() => {
-            const input = document.getElementById('artModalInput');
-            if (input) {
-                const p = document.createElement('p');
-                p.style.cssText = 'direction:rtl;text-align:right;font-size:16px;line-height:1.6;color:#333;padding:10px;';
-                p.innerText = tafsirText;
-                input.parentNode.replaceChild(p, input);
-            }
-            const confirmBtn = document.getElementById('artModalConfirm');
-            if (confirmBtn) confirmBtn.textContent = 'تم';
-        }, 10);
-
-    } catch(e) {
-        // ✅ اللودر بيتحدث ومش بيختفي فجأة
-        loader.textContent = '❌ فشل تحميل التفسير، تحقق من الإنترنت';
-        setTimeout(() => loader.remove(), 2500);
+    } catch (e) {
+        if (document.getElementById('tafsir-loader')) loader.remove();
+        showCustomToast('❌ خطأ في الاتصال');
     }
 }
-
-// ✅ Guard كامل قبل الـ subscribe
-if (typeof _supabase !== 'undefined' && typeof currentUser !== 'undefined' && currentUser) {
-    _supabase
-        .channel('quran-bookmarks-realtime')  // ✅ اسم channel أوضح
-        .on('postgres_changes', {
-            event: '*',
-            schema: 'public',
-            table: 'quran_bookmarks',
-            filter: `owner_name=eq.${currentUser}`
-        }, () => {
-            fetchQuranBookmarks().then((ok) => {
-                if (!ok) return; // ✅ مش بيحدث الواجهة لو الجلب فشل
-                if (document.getElementById('mushaf-overlay')) renderMushaf();
-                if (document.getElementById('mushaf-bookmarks-preview')) renderBookmarksPreview();
-            });
-        })
-        .subscribe();
-}
-
-// ✅ في try/catch منفصل عشان متأثرش بالـ subscribe
-try { initNavBehavior(); } catch(e) { console.warn('initNavBehavior:', e); }
     initNavBehavior();
-  async function copyAyahText(surah, ayah) {
+ async function copyAyahText(surah, ayah, text) {
     try {
-        const el   = document.getElementById(`ayah-${surah}-${ayah}`);
-        const text = el ? el.innerText.replace(/[0-9]/g, '').trim() : '';
+        // 1. تحديد النص: لو مبعوت جاهز نستخدمه، لو مش مبعوت نجيبه من الصفحة
+        let textToCopy = text;
+        if (!textToCopy) {
+            const el = document.getElementById(`ayah-${surah}-${ayah}`);
+            // بنشيل الأرقام عشان ننسخ نص الآية فقط
+            textToCopy = el ? el.innerText.replace(/[0-9]/g, '').trim() : '';
+        }
 
-        // ✅ fallback لـ Android WebView اللي مش بتدعم clipboard API
+        if (!textToCopy) return;
+
+        // 2. محاولة النسخ باستخدام Clipboard API (للمتصفحات الحديثة)
         if (navigator.clipboard && navigator.clipboard.writeText) {
-            await navigator.clipboard.writeText(text);
+            await navigator.clipboard.writeText(textToCopy);
         } else {
-            // ✅ الطريقة القديمة الشغالة على كل Android
+            // 3. Fallback: الطريقة الكلاسيكية للأجهزة القديمة وبعض نسخ WebView
             const ta = document.createElement('textarea');
-            ta.value = text;
-            ta.style.cssText = 'position:fixed;top:-9999px;left:-9999px;opacity:0;';
+            ta.value = textToCopy;
+            ta.style.cssText = 'position:fixed;top:0;left:0;width:2em;height:2em;padding:0;border:none;outline:none;boxShadow:none;background:transparent';
             document.body.appendChild(ta);
             ta.focus();
             ta.select();
             document.execCommand('copy');
-            ta.remove();
+            document.body.removeChild(ta);
         }
 
+        // 4. إظهار التنبيهات
         showCustomToast('تم نسخ الآية بنجاح ✅');
-        if (typeof Android !== 'undefined') Android.showToast('تم النسخ ✅');
+        
+        // لو شغال جوه App أندرويد وفيه واجهة برمجة للـ Toast
+        if (typeof Android !== 'undefined' && Android.showToast) {
+            Android.showToast("تم النسخ ✅");
+        }
 
     } catch (err) {
         console.error('Copy failed', err);
