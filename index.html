@@ -142,10 +142,93 @@ function handleBack() {
         if(window.parent) window.parent.postMessage('closeMushaf', '*');
     }
 }
+// ✅ استبدل window.onload = initMushafApp بده
+window.onload = async function() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const userFromUrl = urlParams.get('user');
+    if (userFromUrl) {
+        currentUser = userFromUrl;
+        localStorage.setItem('mouser', userFromUrl);
+    } else {
+        currentUser = localStorage.getItem('mouser') || 'Guest';
+    }
 
-// تشغيل التطبيق عند تحميل الصفحة
-window.onload = initMushafApp;
+    await initMushafApp();
 
+    // ✅ اظهر الـ mushaf-section مباشرة
+    const target = document.getElementById('mushaf-section');
+    if (target) {
+        target.style.display = 'flex';
+        target.style.flexDirection = 'column';
+        target.style.alignItems = 'center';
+        target.style.minHeight = '100dvh';
+        target.style.overflow = 'visible';
+    }
+}
+async function initMushafApp() {
+    // 1. أظهر الـ app
+    const app = document.getElementById('journal-app');
+    if (app) {
+        app.style.display = 'flex';
+        app.style.flexDirection = 'column';
+        app.style.alignItems = 'center';
+        app.style.width = '100%';
+    }
+
+    // 2. أظهر mushaf-section
+    const mushafSection = document.getElementById('mushaf-section');
+    if (mushafSection) {
+        mushafSection.style.display = 'flex';
+        mushafSection.style.flexDirection = 'column';
+        mushafSection.style.alignItems = 'center';
+        mushafSection.style.width = '100%';
+        mushafSection.style.minHeight = '100dvh';
+        mushafSection.style.overflow = 'visible';
+    }
+
+    // 3. الاسم الملون
+    const colors = ['#ff851b', '#2ecc71', '#3498db', '#9b59b6', '#f1c40f', '#e74c3c'];
+    let coloredName = '';
+    const displayName = currentUser.split(' ')[0];
+    displayName.split('').forEach((char, i) => {
+        coloredName += `<span class="${i===0 ? 'animated-letter' : ''}" style="color:${colors[i % colors.length]}">${char.toUpperCase()}</span>`;
+    });
+    const avatarEl = document.getElementById('user-avatar-text');
+    if (avatarEl) avatarEl.innerHTML = coloredName;
+
+    // 4. جلب السور والإعدادات
+    await fetchSurahList();
+
+    try {
+        const { data } = await _supabase
+            .from('user_mushaf_settings')
+            .select('*')
+            .eq('owner_name', currentUser)
+            .maybeSingle();
+
+        if (data) {
+            if (data.last_page_reading)  localStorage.setItem('mushaf_last_page_reading',  data.last_page_reading);
+            if (data.last_page_tahajjud) localStorage.setItem('mushaf_last_page_tahajjud', data.last_page_tahajjud);
+            if (data.last_reciter)       currentReciter = data.last_reciter;
+        }
+    } catch(e) {
+        console.warn('Settings fetch failed:', e);
+    }
+
+    // 5. رندر الـ selector
+    renderMushafSelector();
+
+    // 6. جلب الـ bookmarks وعرض الـ preview
+    try {
+        await fetchQuranBookmarks();
+        if (typeof renderBookmarksPreview === 'function') renderBookmarksPreview();
+    } catch(e) {
+        console.warn('Bookmarks fetch failed:', e);
+    }
+
+    // 7. زرار التنقل العائم
+    if (typeof initGlobalMushafNav === 'function') initGlobalMushafNav();
+}
 // ============================================================
 // ✅ متغيرات المصحف
 // ============================================================
