@@ -434,7 +434,7 @@ async function openMushaf(mode, targetPage = null) {
 // ✅ الـ Overlay الرئيسي
 // ============================================================
 function renderMushaf() {
-    // 1. إضافة الستايلات المتطورة والـ CSS Art للأيقونات (Back, Play, Pause, Stop, Loop, Bookmark)
+    // 1. إضافة الستايلات المتطورة والـ CSS Art للأيقونات
     if (!document.getElementById('mushaf-responsive-css')) {
         const s = document.createElement('style');
         s.id = 'mushaf-responsive-css';
@@ -468,7 +468,7 @@ function renderMushaf() {
             
             #btn-close-mushaf {
                 position: absolute;
-                bottom: -46px; /* ينزل فوق سطح بوكس البحث */
+                bottom: -46px; 
                 left: 12px;
                 z-index: 101;
                 background: var(--dark-blue, #001f3f) !important;
@@ -579,20 +579,49 @@ function renderMushaf() {
     document.getElementById('mushaf-search-input').addEventListener('input', function() { mushafFuzzySearch(this.value); });
     document.getElementById('page-jump-input').addEventListener('change', function() { jumpMushafPage(this.value); });
 
-    // ربط زرار Play الرئيسي
+    // ✅ ربط زرار Play الرئيسي (ذكاء اصطناعي للتهجد)
     document.getElementById('btn-main-play').addEventListener('click', function() {
         const icon = document.getElementById('main-play-icon');
+        
         if (currentAudio && !currentAudio.paused) {
             stopAudio();
             icon.className = 'icon-play';
             document.getElementById('btn-stop-audio').style.display = 'none';
         } else {
-            const firstAyahBtn = document.querySelector('.ayah-num-btn');
-            if (firstAyahBtn) {
-                playAyah(parseInt(firstAyahBtn.dataset.surah), 1);
-                icon.className = 'icon-pause';
-                document.getElementById('btn-stop-audio').style.display = 'flex';
+            let surahNum = 1;
+            
+            if (mushafMode === 'tahajjud') {
+                // الفهرس الموضوعي للتهجد
+                const tahajjudIndex = {
+                    1: 1, 2: 2, 14: 3, 20: 4, 28: 5, 33: 6, 39: 7, 45: 8, 48: 9, 53: 10,
+                    56: 11, 60: 12, 63: 13, 65: 14, 67: 15, 68: 16, 72: 17, 74: 18, 77: 19, 79: 20,
+                    82: 21, 84: 22, 87: 23, 89: 24, 91: 25, 93: 26, 95: 27, 97: 28, 100: 29, 102: 30,
+                    104: 31, 105: 32, 106: 33, 108: 34, 110: 35, 111: 36, 113: 37, 114: 38, 116: 39,
+                    118: 40, 120: 41, 122: 42, 123: 43, 125: 44, 126: 45, 127: 46, 128: 47, 129: 48,
+                    130: 49, 131: 50, 131: 51, 132: 52, 133: 53, 133: 54, 134: 55, 135: 56, 135: 57,
+                    137: 58, 137: 59, 138: 60, 139: 61, 139: 62, 140: 63, 140: 64, 141: 65, 141: 66,
+                    142: 67, 142: 68, 143: 69, 143: 70, 144: 71, 144: 72, 145: 73, 145: 74, 145: 75,
+                    146: 76, 146: 77, 147: 78, 147: 79, 147: 80, 148: 81, 148: 82, 148: 83, 148: 84,
+                    149: 85, 149: 86, 149: 87, 149: 88, 149: 89, 150: 90, 150: 91, 150: 92, 150: 93,
+                    150: 94, 150: 95, 151: 96, 151: 97, 151: 98, 151: 99, 151: 100, 151: 101, 151: 102,
+                    151: 103, 152: 104, 152: 105, 152: 106, 152: 107, 152: 108, 152: 109, 152: 110,
+                    152: 111, 152: 112, 152: 113, 152: 114
+                };
+                const pages = Object.keys(tahajjudIndex).map(Number).sort((a,b) => b-a);
+                for (let p of pages) {
+                    if (currentMushafPage >= p) {
+                        surahNum = tahajjudIndex[p];
+                        break;
+                    }
+                }
+            } else {
+                const firstAyahBtn = document.querySelector('.ayah-num-btn');
+                if (firstAyahBtn) surahNum = parseInt(firstAyahBtn.dataset.surah);
             }
+
+            playAyah(surahNum, 1);
+            icon.className = 'icon-pause';
+            document.getElementById('btn-stop-audio').style.display = 'flex';
         }
     });
 
@@ -1029,6 +1058,9 @@ async function showMushafNav() {
     // 2. مسح أي لوحة قديمة موجودة
     document.getElementById('mushaf-nav-panel')?.remove();
 
+    // فحص المود الحالي
+    const isTahajjud = (typeof mushafMode !== 'undefined' && mushafMode === 'tahajjud');
+
     const panel = document.createElement('div');
     panel.id = 'mushaf-nav-panel';
     
@@ -1054,7 +1086,7 @@ async function showMushafNav() {
             border-radius:25px 25px 0 0;flex-shrink:0;
             display:flex;align-items:center;justify-content:space-between;">
             <span style="color:var(--orange,#ff851b);font-weight:bold;font-size:18px;
-                font-family:'Amiri Quran',serif;">🗂️ قائمة الانتقال السريع</span>
+                font-family:'Amiri Quran',serif;">🗂️ ${isTahajjud ? 'فهرس مصحف التهجد' : 'قائمة الانتقال السريع'}</span>
             <div id="nav-close-btn"
                 style="color:white;font-size:24px;cursor:pointer;width:35px;height:35px;
                 display:flex;align-items:center;justify-content:center;
@@ -1063,15 +1095,15 @@ async function showMushafNav() {
 
         <div style="padding:12px;flex-shrink:0;background:#fdfcf0;border-bottom:1px solid #eee;">
             <input type="text" id="nav-unified-search"
-                placeholder="🔍 ابحث عن سورة، جزء، أو رقم صفحة..."
+                placeholder="${isTahajjud ? '🔍 ابحث عن سورة في التهجد...' : '🔍 ابحث عن سورة، جزء، أو رقم صفحة...'}"
                 style="width:100%;padding:12px 16px;border-radius:15px;
                 border:2px solid var(--orange,#ff851b);font-size:15px;
                 direction:rtl;outline:none;box-sizing:border-box;
                 font-family:'Amiri Quran',serif;box-shadow:0 4px 10px rgba(0,0,0,0.05);">
         </div>
 
-        <div id="nav-tabs-bar" style="display:flex;flex-shrink:0;background:#fdfcf0;
-            padding:0 10px;border-bottom:1px solid #eee;">
+        <div id="nav-tabs-bar" style="display:${isTahajjud ? 'none' : 'flex'}; flex-shrink:0; background:#fdfcf0;
+            padding:0 10px; border-bottom:1px solid #eee;">
             <button id="nav-tab-surah"
                 style="flex:1;padding:12px;border:none;background:var(--orange,#ff851b);
                 color:white;font-weight:bold;border-radius:10px 10px 0 0;
@@ -1088,7 +1120,7 @@ async function showMushafNav() {
 
         <div id="nav-tab-content"
             style="flex:1;overflow-y:auto;padding:10px;background:white;">
-            ${buildSurahListNav('')}
+            ${isTahajjud ? buildTahajjudDefaultList() : buildSurahListNav('')}
         </div>`;
 
     document.body.appendChild(panel);
@@ -1100,24 +1132,30 @@ async function showMushafNav() {
         navUnifiedSearch(this.value); 
     });
 
-    document.getElementById('nav-tab-surah')?.addEventListener('click', () => switchNavTab('surah'));
-    document.getElementById('nav-tab-juz')?.addEventListener('click', () => switchNavTab('juz'));
-    document.getElementById('nav-tab-ayah')?.addEventListener('click', () => switchNavTab('ayah'));
+    // ربط التابات فقط إذا كانت ظاهرة
+    if (!isTahajjud) {
+        document.getElementById('nav-tab-surah')?.addEventListener('click', () => switchNavTab('surah'));
+        document.getElementById('nav-tab-juz')?.addEventListener('click', () => switchNavTab('juz'));
+        document.getElementById('nav-tab-ayah')?.addEventListener('click', () => switchNavTab('ayah'));
+    }
 
     // ✅ Event delegation للنتائج
     document.getElementById('nav-tab-content')?.addEventListener('click', (e) => {
         const item = e.target.closest('[data-navto]');
         if (!item) return;
-        const p = parseInt(item.dataset.navto);
-        currentMushafPage = p;
-        panel.remove();
         
-        // لو المصحف مفتوح حدث الصفحة، لو مقفول افتحه
-        if (document.getElementById('mushaf-overlay')) {
-            loadPageText(p); // تحديث المحتوى فوراً بدل إعادة الرندر كاملة لتوفير الموارد
-            renderMushaf();  // لتحديث الأرقام في الهيدر والفوتر
+        // استخدام دالة navTo الموحدة لضمان الفلترة الصحيحة للأرقام
+        if (typeof navTo === 'function') {
+            navTo(item.dataset.navto);
         } else {
-            openMushaf(mushafMode || 'reading');
+            const p = parseInt(item.dataset.navto);
+            currentMushafPage = p;
+            panel.remove();
+            if (document.getElementById('mushaf-overlay')) {
+                renderMushaf();
+            } else {
+                openMushaf(mushafMode || 'reading');
+            }
         }
     });
 
@@ -1132,93 +1170,178 @@ function navUnifiedSearch(query) {
     if (!content) return;
 
     const q = query.trim();
+    const isTahajjud = (typeof mushafMode !== 'undefined' && mushafMode === 'tahajjud');
 
+    // ✅ حالة البحث الفارغ: عرض القائمة الافتراضية لكل مود
     if (!q) {
         if (tabsBar) tabsBar.style.display = 'flex';
-        content.innerHTML = buildSurahListNav('');
+        if (isTahajjud) {
+            content.innerHTML = buildTahajjudDefaultList();
+        } else {
+            content.innerHTML = buildSurahListNav('');
+        }
         return;
     }
 
     if (tabsBar) tabsBar.style.display = 'none';
 
     const qNorm = normalizeArabic(q);
-    const qNum  = parseInt(q);
-
-    const matchedSurahs = mushafSurahList.filter(s =>
-        normalizeArabic(s.name).includes(qNorm) ||
-        s.englishName.toLowerCase().includes(q.toLowerCase()) ||
-        (!isNaN(qNum) && s.number === qNum)
-    );
-
-    const matchedJuz = JUZ_NAMES.map((name, i) => ({ name, num: i+1, page: JUZ_PAGES[i] }))
-        .filter(j => normalizeArabic(j.name).includes(qNorm) || (!isNaN(qNum) && j.num === qNum));
-
-    const pageMatch = (!isNaN(qNum) && qNum >= 1 && qNum <= 604) ? qNum : null;
-
+    const qNum = parseInt(q);
     let html = '';
 
-    // ✅ data-navto بدل onclick string
-    if (pageMatch) {
+    // 1️⃣ منطق "الصفحة المباشرة" (فرملة الأرقام حسب المود)
+    const maxPages = isTahajjud ? 152 : 604;
+    if (!isNaN(qNum) && qNum >= 1 && qNum <= maxPages) {
         html += `
-            <div style="padding:6px 10px;font-size:11px;color:#aaa;font-weight:bold;
-                background:#f9f9f9;border-radius:6px;margin-bottom:6px;">📄 صفحة مباشرة</div>
-            <div data-navto="${pageMatch}"
-                style="padding:12px 15px;margin-bottom:12px;background:#fff9f0;
-                border-radius:12px;border:2px solid var(--orange);cursor:pointer;
-                display:flex;justify-content:space-between;align-items:center;">
-                <span style="font-weight:bold;color:var(--dark-blue);">انتقال سريع لصفحة ${pageMatch}</span>
-                <span style="font-size:12px;color:var(--orange);">ج${getJuzFromPage(pageMatch)}</span>
+            <div style="padding:6px 10px;font-size:11px;color:#aaa;font-weight:bold;background:#f9f9f9;border-radius:6px;margin-bottom:6px;">📄 صفحة مباشرة</div>
+            <div onclick="navTo(${qNum})" style="padding:12px 15px;margin-bottom:12px;background:#fff9f0;border-radius:12px;border:2px solid var(--orange);cursor:pointer;display:flex;justify-content:space-between;align-items:center;">
+                <span style="font-weight:bold;color:var(--dark-blue);">انتقال لصفحة ${qNum} (${isTahajjud ? 'التهجد' : 'القراءة'})</span>
+                <span style="font-size:12px;color:var(--orange);">إذهب ⬅️</span>
             </div>`;
     }
 
-    if (matchedSurahs.length > 0) {
-        html += `<div style="padding:6px 10px;font-size:11px;color:#aaa;font-weight:bold;
-            background:#f9f9f9;border-radius:6px;margin-bottom:6px;">📖 السور</div>`;
-        matchedSurahs.forEach(s => {
-            const pNum = SURAH_PAGES[s.number - 1];
-            html += `
-                <div data-navto="${pNum}"
-                    style="padding:12px 15px;border-bottom:1px solid #f0f0f0;cursor:pointer;
-                    display:flex;justify-content:space-between;align-items:center;background:white;">
-                    <div style="display:flex;align-items:center;gap:10px;">
-                        <span style="width:24px;height:24px;background:var(--orange);color:white;
-                            border-radius:50%;display:flex;align-items:center;justify-content:center;
-                            font-size:10px;">${s.number}</span>
-                        <span style="font-family:'Amiri Quran',serif;font-size:18px;
-                            color:var(--dark-blue);">${s.name}</span>
-                    </div>
-                    <div style="color:var(--orange);font-weight:bold;font-size:13px;">ص ${pNum}</div>
-                </div>`;
-        });
-    }
+    // 2️⃣ منطق البحث في السور (فصل تام بين المصحفين)
+    if (isTahajjud) {
+        // فهرس التهجد الموضوعي (152 صفحة)
+        const tahajjudIndex = {
+            1: "الفاتحة", 2: "البقرة", 14: "آل عمران", 20: "النساء", 28: "المائدة",
+            33: "الأنعام", 39: "الأعراف", 45: "الأنفال", 48: "التوبة", 53: "يونس",
+            56: "هود", 60: "يوسف", 63: "الرعد", 65: "إبراهيم", 67: "الحجر",
+            68: "النحل", 72: "الإسراء", 74: "الكهف", 77: "مريم", 79: "طه",
+            82: "الأنبياء", 84: "الحج", 87: "المؤمنون", 89: "النور", 91: "الفرقان",
+            93: "الشعراء", 95: "النمل", 97: "القصص", 100: "العنكبوت", 102: "الروم",
+            104: "لقمان", 105: "السجدة", 106: "الأحزاب", 108: "سبأ", 110: "فاطر",
+            111: "يس", 113: "الصافات", 114: "ص", 116: "الزمر", 118: "غافر",
+            120: "فصلت", 122: "الشورى", 123: "الزخرف", 125: "الدخان", 126: "الجاثية",
+            127: "الأحقاف", 128: "محمد", 129: "الفتح", 130: "الحجرات", 131: "ق",
+            131: "الذاريات", 132: "الطور", 133: "النجم", 133: "القمر", 134: "الرحمن",
+            135: "الواقعة", 135: "الحديد", 137: "المجادلة", 137: "الحشر", 138: "الممتحنة",
+            139: "الصف", 139: "الجمعة", 140: "المنافقون", 140: "التغابن", 141: "الطلاق",
+            141: "التحريم", 142: "الملك", 142: "القلم", 143: "الحاقة", 143: "المعارج",
+            144: "نوح", 144: "الجن", 145: "المزمل", 145: "المدثر", 145: "القيامة",
+            146: "الإنسان", 146: "المرسلات", 147: "النبأ", 147: "النازعات", 147: "عبس",
+            148: "التكوير", 148: "الانفطار", 148: "المطففين", 148: "الانشقاق", 149: "البروج",
+            149: "الطارق", 149: "الأعلى", 149: "الغاشية", 149: "الفجر", 150: "البلد",
+            150: "الشمس", 150: "الليل", 150: "الضحى", 150: "الشرح", 150: "التين",
+            151: "العلق", 151: "القدر", 151: "البينة", 151: "الزلزلة", 151: "العاديات",
+            151: "القارعة", 151: "التكاثر", 151: "العصر", 152: "الهمزة", 152: "الفيل",
+            152: "قريش", 152: "الماعون", 152: "الكوثر", 152: "الكافرون", 152: "النصر",
+            152: "المسد", 152: "الإخلاص", 152: "الفلق", 152: "الناس"
+        };
 
-    if (matchedJuz.length > 0) {
-        html += `<div style="padding:6px 10px;font-size:11px;color:#aaa;font-weight:bold;
-            background:#f9f9f9;border-radius:6px;margin:12px 0 6px;">📑 الأجزاء</div>`;
-        matchedJuz.forEach(j => {
-            html += `
-                <div data-navto="${j.page}"
-                    style="padding:12px 15px;border-bottom:1px solid #f0f0f0;cursor:pointer;
-                    display:flex;justify-content:space-between;align-items:center;background:white;">
-                    <div style="display:flex;align-items:center;gap:10px;">
-                        <span style="width:30px;height:30px;background:var(--dark-blue);
-                            color:var(--orange);border-radius:50%;display:flex;align-items:center;
-                            justify-content:center;font-size:12px;font-weight:bold;">${j.num}</span>
-                        <span style="font-weight:bold;color:var(--dark-blue);">الجزء ${j.num}</span>
-                    </div>
-                    <span style="color:var(--orange);font-weight:bold;">ص ${j.page}</span>
-                </div>`;
-        });
+        const matches = Object.entries(tahajjudIndex).filter(([page, name]) => 
+            normalizeArabic(name).includes(qNorm)
+        );
+
+        if (matches.length > 0) {
+            html += `<div style="padding:6px 10px;font-size:11px;color:#aaa;font-weight:bold;background:#f9f9f9;border-radius:6px;margin-bottom:6px;">🌙 نتائج فهرس التهجد</div>`;
+            matches.forEach(([page, name]) => {
+                html += `
+                    <div onclick="navTo(${page})" style="padding:15px;border-bottom:1px solid #f0f0f0;cursor:pointer;display:flex;justify-content:space-between;align-items:center;background:white;">
+                        <span style="font-family:'Amiri Quran',serif;font-size:18px;color:var(--dark-blue);">سورة ${name}</span>
+                        <div style="color:var(--orange);font-weight:bold;font-size:13px;">ص ${page}</div>
+                    </div>`;
+            });
+        }
+    } else {
+        // فهرس القراءة الأصلي (604 صفحة)
+        const matchedSurahs = mushafSurahList.filter(s =>
+            normalizeArabic(s.name).includes(qNorm) ||
+            s.englishName.toLowerCase().includes(q.toLowerCase()) ||
+            (!isNaN(qNum) && s.number === qNum)
+        );
+
+        if (matchedSurahs.length > 0) {
+            html += `<div style="padding:6px 10px;font-size:11px;color:#aaa;font-weight:bold;background:#f9f9f9;border-radius:6px;margin-bottom:6px;">📖 نتائج مصحف القراءة</div>`;
+            matchedSurahs.forEach(s => {
+                const pNum = SURAH_PAGES[s.number - 1];
+                html += `
+                    <div onclick="navTo(${pNum})" style="padding:12px 15px;border-bottom:1px solid #f0f0f0;cursor:pointer;display:flex;justify-content:space-between;align-items:center;background:white;">
+                        <div style="display:flex;align-items:center;gap:10px;">
+                            <span style="width:24px;height:24px;background:var(--orange);color:white;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;">${s.number}</span>
+                            <span style="font-family:'Amiri Quran',serif;font-size:18px;color:var(--dark-blue);">${s.name}</span>
+                        </div>
+                        <div style="color:var(--orange);font-weight:bold;font-size:13px;">ص ${pNum}</div>
+                    </div>`;
+            });
+        }
+
+        // 3️⃣ نتائج الأجزاء (فقط في مصحف القراءة)
+        const matchedJuz = JUZ_NAMES.map((name, i) => ({ name, num: i+1, page: JUZ_PAGES[i] }))
+            .filter(j => normalizeArabic(j.name).includes(qNorm));
+
+        if (matchedJuz.length > 0) {
+            html += `<div style="padding:6px 10px;font-size:11px;color:#aaa;font-weight:bold;background:#f9f9f9;border-radius:6px;margin:12px 0 6px;">📑 الأجزاء</div>`;
+            matchedJuz.forEach(j => {
+                html += `
+                    <div onclick="navTo(${j.page})" style="padding:12px 15px;border-bottom:1px solid #f0f0f0;cursor:pointer;display:flex;justify-content:space-between;align-items:center;background:white;">
+                        <div style="display:flex;align-items:center;gap:10px;">
+                            <span style="width:30px;height:30px;background:var(--dark-blue);color:var(--orange);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:bold;">${j.num}</span>
+                            <span style="font-weight:bold;color:var(--dark-blue);">الجزء ${j.num}</span>
+                        </div>
+                        <span style="color:var(--orange);font-weight:bold;">ص ${j.page}</span>
+                    </div>`;
+            });
+        }
     }
 
     if (!html) {
         html = `<div style="text-align:center;padding:40px;color:#ccc;">
             <div style="font-size:40px;margin-bottom:10px;">🔍</div>
-            <div style="font-size:14px;">يا Mo، مفيش نتائج لـ "${q}"</div></div>`;
+            <div style="font-size:14px;">يا Mo، مفيش نتائج لـ "${q}" في مصحف ${isTahajjud ? 'التهجد' : 'القراءة'}</div></div>`;
     }
 
     content.innerHTML = html;
-    // ملحوظة: الـ event delegation موجود على content من showMushafNav ✅
+}
+
+// ✅ دالة عرض فهرس التهجد الافتراضي عند فتح القائمة (الـ 152 صفحة)
+function buildTahajjudDefaultList() {
+    // البيانات الدقيقة المستخرجة من الفهرس السوري (152 صفحة)
+    const tahajjudData = [
+        {p: 1, n: "الفاتحة"}, {p: 2, n: "البقرة"}, {p: 14, n: "آل عمران"}, {p: 20, n: "النساء"}, {p: 28, n: "المائدة"},
+        {p: 33, n: "الأنعام"}, {p: 39, n: "الأعراف"}, {p: 45, n: "الأنفال"}, {p: 48, n: "التوبة"}, {p: 53, n: "يونس"},
+        {p: 56, n: "هود"}, {p: 60, n: "يوسف"}, {p: 63, n: "الرعد"}, {p: 65, n: "إبراهيم"}, {p: 67, n: "الحجر"},
+        {p: 68, n: "النحل"}, {p: 72, n: "الإسراء"}, {p: 74, n: "الكهف"}, {p: 77, n: "مريم"}, {p: 79, n: "طه"},
+        {p: 82, n: "الأنبياء"}, {p: 84, n: "الحج"}, {p: 87, n: "المؤمنون"}, {p: 89, n: "النور"}, {p: 91, n: "الفرقان"},
+        {p: 93, n: "الشعراء"}, {p: 95, n: "النمل"}, {p: 97, n: "القصص"}, {p: 100, n: "العنكبوت"}, {p: 102, n: "الروم"},
+        {p: 104, n: "لقمان"}, {p: 105, n: "السجدة"}, {p: 106, n: "الأحزاب"}, {p: 108, n: "سبأ"}, {p: 110, n: "فاطر"},
+        {p: 111, n: "يس"}, {p: 113, n: "الصافات"}, {p: 114, n: "ص"}, {p: 116, n: "الزمر"}, {p: 118, n: "غافر"},
+        {p: 120, n: "فصلت"}, {p: 122, n: "الشورى"}, {p: 123, n: "الزخرف"}, {p: 125, n: "الدخان"}, {p: 126, n: "الجاثية"},
+        {p: 127, n: "الأحقاف"}, {p: 128, n: "محمد"}, {p: 129, n: "الفتح"}, {p: 130, n: "الحجرات"}, {p: 131, n: "ق"},
+        {p: 131, n: "الذاريات"}, {p: 132, n: "الطور"}, {p: 133, n: "النجم"}, {p: 133, n: "القمر"}, {p: 134, n: "الرحمن"},
+        {p: 135, n: "الواقعة"}, {p: 135, n: "الحديد"}, {p: 137, n: "المجادلة"}, {p: 137, n: "الحشر"}, {p: 138, n: "الممتحنة"},
+        {p: 139, n: "الصف"}, {p: 139, n: "الجمعة"}, {p: 140, n: "المنافقون"}, {p: 140, n: "التغابن"}, {p: 141, n: "الطلاق"},
+        {p: 141, n: "التحريم"}, {p: 142, n: "الملك"}, {p: 142, n: "القلم"}, {p: 143, n: "الحاقة"}, {p: 143, n: "المعارج"},
+        {p: 144, n: "نوح"}, {p: 144, n: "الجن"}, {p: 145, n: "المزمل"}, {p: 145, n: "المدثر"}, {p: 145, n: "القيامة"},
+        {p: 146, n: "الإنسان"}, {p: 146, n: "المرسلات"}, {p: 147, n: "النبأ"}, {p: 147, n: "النازعات"}, {p: 147, n: "عبس"},
+        {p: 148, n: "التكوير"}, {p: 148, n: "الانفطار"}, {p: 148, n: "المطففين"}, {p: 148, n: "الانشقاق"}, {p: 149, n: "البروج"},
+        {p: 149, n: "الطارق"}, {p: 149, n: "الأعلى"}, {p: 149, n: "الغاشية"}, {p: 149, n: "الفجر"}, {p: 150, n: "البلد"},
+        {p: 150, n: "الشمس"}, {p: 150, n: "الليل"}, {p: 150, n: "الضحى"}, {p: 150, n: "الشرح"}, {p: 150, n: "التين"},
+        {p: 151, n: "العلق"}, {p: 151, n: "القدر"}, {p: 151, n: "البينة"}, {p: 151, n: "الزلزلة"}, {p: 151, n: "العاديات"},
+        {p: 151, n: "القارعة"}, {p: 151, n: "التكاثر"}, {p: 151, n: "العصر"}, {p: 152, n: "الهمزة"}, {p: 152, n: "الفيل"},
+        {p: 152, n: "قريش"}, {p: 152, n: "الماعون"}, {p: 152, n: "الكوثر"}, {p: 152, n: "الكافرون"}, {p: 152, n: "النصر"},
+        {p: 152, n: "المسد"}, {p: 152, n: "الإخلاص"}, {p: 152, n: "الفلق"}, {p: 152, n: "الناس"}
+    ];
+
+    return `
+        <div style="padding:12px; font-weight:bold; color:var(--orange); text-align:center; background:#fdfcf0; border-bottom:2px solid var(--orange); position:sticky; top:0; z-index:5;">
+            📋 فهرس مصحف التهجد (152 صفحة)
+        </div>
+        <div id="tahajjud-nav-items" style="background:white; padding-bottom: 20px;">
+            ${tahajjudData.map((s, index) => `
+                <div data-navto="${s.p}" 
+                     style="padding:16px 20px; border-bottom:1px solid #f5f5f5; display:flex; justify-content:space-between; align-items:center; cursor:pointer; -webkit-tap-highlight-color:rgba(0,0,0,0.05);">
+                    <div style="display:flex; align-items:center; gap:15px; pointer-events:none;">
+                        <span style="font-size:12px; color:#ccc; width:20px; text-align:center;">${index + 1}</span>
+                        <span style="font-family:'Amiri Quran',serif; font-size:20px; color:var(--dark-blue);">سورة ${s.n}</span>
+                    </div>
+                    <div style="background:rgba(255,133,27,0.1); padding:4px 10px; border-radius:8px; pointer-events:none;">
+                        <span style="font-weight:bold; color:var(--orange); font-size:14px;">ص ${s.p}</span>
+                    </div>
+                </div>
+            `).join('')}
+            <div style="text-align:center; padding:30px; color:#bbb; font-size:12px;">تم مراجعة الفهرس بالكامل ✅</div>
+        </div>`;
 }
 // ============================================================
 // ✅ بناء عناصر القوائم
@@ -1621,25 +1744,62 @@ async function goToAyahFromSearch(surahNum, ayahNum) {
     // لو المصحف مفتوح، نوري لودر مكانه
     const container = document.getElementById('mushaf-page-content');
     if (container) {
-        container.innerHTML = '<div style="text-align:center;padding-top:35%;"><div style="font-size:35px;animation:spin 1s linear infinite;">⏳</div><div style="color:#aaa;font-size:12px;margin-top:10px;">جاري توجيهك للآية...</div></div>';
+        container.innerHTML = `
+            <div style="text-align:center;padding-top:35%;">
+                <div style="font-size:35px;animation:spin 1s linear infinite;">⏳</div>
+                <div style="color:#aaa;font-size:12px;margin-top:10px;">جاري توجيهك...</div>
+            </div>`;
     }
 
-    try {
-        // نطلب بيانات الآية دي بالظبط عشان نجيب الـ page بتاعها
-        const res = await fetch(`https://api.alquran.cloud/v1/ayah/${surahNum}:${ayahNum}`);
-        const json = await res.json();
+    // ✅ فحص المود الحالي
+    const isTahajjud = (typeof mushafMode !== 'undefined' && mushafMode === 'tahajjud');
 
-        if (json.code === 200 && json.data && json.data.page) {
-            // لقينا الصفحة الدقيقة، ننقل المستخدم فوراً
-            goToSearchResult(json.data.page, surahNum, ayahNum);
+    if (isTahajjud) {
+        // 🌙 منطق مصحف التهجد (152 صفحة)
+        // الفهرس العكسي: السورة رقم X موجودة في صفحة كام في التهجد
+        const tahajjudIndex = {
+            1: 1, 2: 2, 3: 14, 4: 20, 5: 28, 6: 33, 7: 39, 8: 45, 9: 48, 10: 53,
+            11: 56, 12: 60, 13: 63, 14: 65, 15: 67, 16: 68, 17: 72, 18: 74, 19: 77, 20: 79,
+            21: 82, 22: 84, 23: 87, 24: 89, 25: 91, 26: 93, 27: 95, 28: 97, 29: 100, 30: 102,
+            31: 104, 32: 105, 33: 106, 34: 108, 35: 110, 36: 111, 37: 113, 38: 114, 39: 116,
+            40: 118, 41: 120, 42: 122, 43: 123, 44: 125, 45: 126, 46: 127, 47: 128, 48: 129,
+            49: 130, 50: 131, 51: 131, 52: 132, 53: 133, 54: 133, 55: 134, 56: 135, 57: 135,
+            58: 137, 59: 137, 60: 138, 61: 139, 62: 139, 63: 140, 64: 140, 65: 141, 66: 141,
+            67: 142, 68: 142, 69: 143, 70: 143, 71: 144, 72: 144, 73: 145, 74: 145, 75: 145,
+            76: 146, 77: 146, 78: 147, 79: 147, 80: 147, 81: 148, 82: 148, 83: 148, 84: 148,
+            85: 149, 86: 149, 87: 149, 88: 149, 89: 149, 90: 150, 91: 150, 92: 150, 93: 150,
+            94: 150, 95: 150, 96: 151, 97: 151, 98: 151, 99: 151, 100: 151, 101: 151, 102: 151,
+            103: 151, 104: 152, 105: 152, 106: 152, 107: 152, 108: 152, 109: 152, 110: 152,
+            111: 152, 112: 152, 113: 152, 114: 152
+        };
+
+        const targetPage = tahajjudIndex[surahNum] || 1;
+        
+        // الانتقال المباشر بدون API
+        currentMushafPage = targetPage;
+        localStorage.setItem('mushaf_last_page_tahajjud', currentMushafPage);
+        
+        if (document.getElementById('mushaf-overlay')) {
+            renderMushaf();
         } else {
-            // لو الـ API خرف، نستخدم الحل الاحتياطي (بداية السورة)
+            openMushaf('tahajjud');
+        }
+
+    } else {
+        // 📖 منطق مصحف القراءة (الـ API الأصلي)
+        try {
+            const res = await fetch(`https://api.alquran.cloud/v1/ayah/${surahNum}:${ayahNum}`);
+            const json = await res.json();
+
+            if (json.code === 200 && json.data && json.data.page) {
+                goToSearchResult(json.data.page, surahNum, ayahNum);
+            } else {
+                goToSearchResult(SURAH_PAGES[surahNum - 1], surahNum, ayahNum);
+            }
+        } catch (err) {
+            console.error("Error fetching exact ayah page:", err);
             goToSearchResult(SURAH_PAGES[surahNum - 1], surahNum, ayahNum);
         }
-    } catch (err) {
-        console.error("Error fetching exact ayah page:", err);
-        // في حالة قطع النت، نستخدم الحل الاحتياطي
-        goToSearchResult(SURAH_PAGES[surahNum - 1], surahNum, ayahNum);
     }
 }
 // ============================================================
@@ -1982,20 +2142,53 @@ function stopAudio() {
 // ✅ بوكمارك الصفحة
 // ============================================================
 async function togglePageBookmark() {
+    // 1. البحث عن البوكمارك في القائمة الحالية بناءً على الصفحة والمود
     const exists = quranBookmarks.find(
-        b => b.page===currentMushafPage && b.mode===mushafMode && !b.ayah_number
+        b => parseInt(b.page) === parseInt(currentMushafPage) && 
+             b.mode === mushafMode && 
+             !b.ayah_number
     );
-    if(exists){
-        await _supabase.from('quran_bookmarks').delete().eq('id',exists.id);
-    } else {
-        await _supabase.from('quran_bookmarks').insert({
-            owner_name:currentUser, page:currentMushafPage, mode:mushafMode, note:''
-        });
-    }
-    await fetchQuranBookmarks();
-    renderMushaf();
-}
 
+    try {
+        if (exists) {
+            // 2. إذا كانت موجودة -> احذفها
+            const { error } = await _supabase
+                .from('quran_bookmarks')
+                .delete()
+                .eq('id', exists.id);
+            
+            if (error) throw error;
+            showCustomToast('تم إزالة الصفحة من المحفوظات 🗑️');
+        } else {
+            // 3. إذا لم تكن موجودة -> أضفها مع تحديد المود الحالي
+            const { error } = await _supabase
+                .from('quran_bookmarks')
+                .insert({
+                    owner_name: currentUser,
+                    page: currentMushafPage,
+                    mode: mushafMode, // حفظ المود (reading أو tahajjud)
+                    note: '',
+                    created_at: new Date().toISOString()
+                });
+            
+            if (error) throw error;
+            showCustomToast('تم حفظ الصفحة بنجاح 🔖');
+        }
+
+        // 4. تحديث البيانات محلياً وإعادة رندر المصحف لتحديث لون الأيقونة
+        await fetchQuranBookmarks();
+        renderMushaf();
+        
+        // تحديث المعاينة في الصفحة الرئيسية لو مفتوحة
+        if (typeof renderBookmarksPreview === 'function') {
+            renderBookmarksPreview();
+        }
+
+    } catch (err) {
+        console.error('Bookmark toggle failed:', err);
+        showCustomToast('⚠️ عذراً، فشل تحديث العلامة');
+    }
+}
 // ============================================================
 // ✅ بوكمارك الآية
 // ============================================================
@@ -2037,103 +2230,115 @@ function updateSingleAyahUI(surahNum, ayahNum) {
 // ============================================================
 // ✅ عرض الفيفوريتس
 // ============================================================
-function showBookmarks() {
+async function showBookmarks() {
     const old = document.getElementById('bookmarks-panel');
     if (old) { old.remove(); return; }
 
-    if (!quranBookmarks.length) {
+    // 1. جلب أحدث البيانات من سوبابيز أولاً لضمان المزامنة
+    await fetchQuranBookmarks();
+
+    // 2. فلترة العلامات بناءً على المود الحالي (تهجد ولا قراءة)
+    const currentModeBookmarks = quranBookmarks.filter(b => b.mode === mushafMode);
+
+    if (currentModeBookmarks.length === 0) {
         const msg = document.createElement('div');
-        msg.style.cssText = `position:fixed;bottom:80px;right:10px;z-index:10020;
-            background:white;border:2px solid var(--orange,#ff851b);border-radius:12px;
-            padding:15px 20px;font-size:14px;color:#999;
-            box-shadow:0 5px 20px rgba(0,0,0,0.2);`;
-        msg.textContent = 'مفيش علامات بعد 🔖';
+        msg.style.cssText = `position:fixed; bottom:80px; left:50%; transform:translateX(-50%); z-index:2147483647;
+            background:white; border:2px solid var(--orange,#ff851b); border-radius:12px;
+            padding:15px 20px; font-size:14px; color:#999; box-shadow:0 5px 20px rgba(0,0,0,0.2); direction:rtl;`;
+        msg.textContent = `مفيش علامات في مصحف ${mushafMode === 'tahajjud' ? 'التهجد' : 'القراءة'} 🔖`;
         document.body.appendChild(msg);
-        setTimeout(() => msg.remove(), 2000);
+        setTimeout(() => msg.remove(), 2500);
         return;
     }
 
-    const pageBookmarks = quranBookmarks.filter(b => !b.ayah_number);
-    const ayahBookmarks = quranBookmarks.filter(b =>  b.ayah_number);
-
     const panel = document.createElement('div');
     panel.id = 'bookmarks-panel';
-    panel.style.cssText = `position:fixed;bottom:72px;right:10px;z-index:10020;
-        background:white;border-radius:15px;padding:15px;
-        min-width:260px;max-width:320px;
-        box-shadow:0 10px 30px rgba(0,0,0,0.4);
-        border:2px solid var(--orange,#ff851b);max-height:380px;overflow-y:auto;`;
+    panel.style.cssText = `position:fixed; bottom:72px; right:10px; z-index:2147483647;
+        background:white; border-radius:20px; padding:15px;
+        min-width:280px; max-width:320px; direction:rtl;
+        box-shadow:0 10px 40px rgba(0,0,0,0.4);
+        border:2px solid var(--orange,#ff851b); max-height:450px; overflow-y:auto;`;
 
     const title = document.createElement('div');
-    title.style.cssText = `font-weight:bold;color:var(--dark-blue,#001f3f);
-        margin-bottom:10px;text-align:center;font-size:14px;`;
-    title.textContent = '📚 علاماتك المرجعية';
+    title.style.cssText = `font-weight:bold; color:var(--dark-blue,#001f3f);
+        margin-bottom:12px; text-align:center; font-size:15px; border-bottom:1px solid #eee; padding-bottom:8px;`;
+    title.innerHTML = `📚 علامات ${mushafMode === 'tahajjud' ? 'التهجد الموضوعي' : 'مصحف القراءة'}`;
     panel.appendChild(title);
 
-    // ✅ صفحات بـ createElement + addEventListener
+    // تقسيم العلامات لنوعين (صفحات وآيات) مع الفلترة بالمود
+    const pageBookmarks = currentModeBookmarks.filter(b => !b.ayah_number);
+    const ayahBookmarks = currentModeBookmarks.filter(b => b.ayah_number);
+
+    // --- عرض علامات الصفحات ---
     if (pageBookmarks.length) {
         const label = document.createElement('div');
-        label.style.cssText = `font-size:11px;color:#aaa;margin-bottom:6px;font-weight:bold;`;
-        label.textContent = '📄 صفحات';
+        label.style.cssText = `font-size:11px; color:#aaa; margin-bottom:8px; font-weight:bold;`;
+        label.textContent = '📄 صفحات محفوظة';
         panel.appendChild(label);
 
         pageBookmarks.forEach(b => {
             const item = document.createElement('div');
-            item.style.cssText = `padding:10px 12px;margin-bottom:6px;background:#fff9f0;
-                border-radius:8px;border:1px solid var(--orange,#ff851b);cursor:pointer;`;
+            item.style.cssText = `padding:12px; margin-bottom:8px; background:#fff9f0;
+                border-radius:12px; border:1px solid #ffe0b2; cursor:pointer; transition:0.2s;`;
             item.innerHTML = `
-                <div style="display:flex;justify-content:space-between;align-items:center;">
-                    <span style="font-weight:bold;color:var(--dark-blue,#001f3f);">📄 صفحة ${b.page}</span>
-                    <span style="font-size:10px;color:var(--orange,#ff851b);">الجزء ${getJuzFromPage(b.page)}</span>
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <span style="font-weight:bold; color:var(--dark-blue,#001f3f); font-size:14px;">📄 صفحة ${b.page}</span>
+                    <span style="font-size:11px; color:var(--orange,#ff851b); font-weight:bold;">ج${getJuzFromPage(b.page)}</span>
                 </div>
-                <div style="font-size:10px;color:#aaa;margin-top:3px;">
-                    ${b.mode === 'tahajjud' ? '🌙 تهجد' : '📖 قراءة'} •
-                    ${new Date(b.created_at).toLocaleDateString('ar-EG')}
+                <div style="font-size:10px; color:#bbb; margin-top:5px; display:flex; justify-content:space-between;">
+                    <span>${new Date(b.created_at).toLocaleDateString('ar-EG')}</span>
+                    <span>انقر للانتقال ⬅️</span>
                 </div>`;
-            item.addEventListener('click', () => {
-                currentMushafPage = parseInt(b.page);
-                renderMushaf();
+            
+            item.onclick = () => {
+                if (typeof navTo === 'function') navTo(b.page);
+                else { currentMushafPage = parseInt(b.page); renderMushaf(); }
                 panel.remove();
-            });
+            };
             panel.appendChild(item);
         });
     }
 
-    // ✅ آيات بـ createElement + addEventListener
+    // --- عرض علامات الآيات (تظهر غالباً في القراءة فقط) ---
     if (ayahBookmarks.length) {
         const label = document.createElement('div');
-        label.style.cssText = `font-size:11px;color:#aaa;margin:10px 0 6px;font-weight:bold;`;
-        label.textContent = '📌 آيات';
+        label.style.cssText = `font-size:11px; color:#aaa; margin:12px 0 8px; font-weight:bold;`;
+        label.textContent = '📌 آيات مميزة';
         panel.appendChild(label);
 
         ayahBookmarks.forEach(b => {
             const item = document.createElement('div');
-            item.style.cssText = `padding:10px 12px;margin-bottom:6px;background:#f0fff4;
-                border-radius:8px;border:1px solid #27ae60;cursor:pointer;`;
+            item.style.cssText = `padding:12px; margin-bottom:8px; background:#f0fff4;
+                border-radius:12px; border:1px solid #c8e6c9; cursor:pointer;`;
             item.innerHTML = `
-                <div style="font-family:'Amiri Quran',serif;font-size:14px;
-                    color:#1a1a2e;direction:rtl;line-height:1.6;">${b.ayah_text || ''}...</div>
-                <div style="display:flex;justify-content:space-between;
-                    align-items:center;margin-top:4px;">
-                    <span style="font-size:11px;color:#27ae60;font-weight:bold;">
-                        ${b.surah_name} : آية ${b.ayah_number}
+                <div style="font-family:'Amiri Quran',serif; font-size:15px;
+                    color:#1a1a2e; direction:rtl; line-height:1.6; margin-bottom:6px;">${b.ayah_text || ''}...</div>
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <span style="font-size:11px; color:#2e7d32; font-weight:bold;">
+                        ${b.surah_name} : ${b.ayah_number}
                     </span>
-                    <span style="font-size:10px;color:#aaa;">ص${b.page} • ج${getJuzFromPage(b.page)}</span>
+                    <span style="font-size:10px; color:#aaa;">ص${b.page}</span>
                 </div>`;
-            item.addEventListener('click', () => {
-                goToSearchResult(b.page, b.surah_number, b.ayah_number);
+            
+            item.onclick = () => {
+                goToAyahFromSearch(b.surah_number, b.ayah_number);
                 panel.remove();
-            });
+            };
             panel.appendChild(item);
         });
     }
 
     document.body.appendChild(panel);
 
+    // إغلاق عند الضغط بالخارج
     setTimeout(() => {
-        document.addEventListener('click', function cp(e) {
-            if (!panel.contains(e.target)) { panel.remove(); document.removeEventListener('click', cp); }
-        });
+        const closeHandler = (e) => {
+            if (!panel.contains(e.target) && e.target.id !== 'btn-show-bookmarks') {
+                panel.remove();
+                document.removeEventListener('click', closeHandler);
+            }
+        };
+        document.addEventListener('click', closeHandler);
     }, 100);
 }
 // ============================================================
@@ -2627,9 +2832,8 @@ async function playNextAyah(surah, ayah) {
             }
         }
     } catch (e) { isContinuousPlay = false; }
-}
-// نادي refreshHomeSettings() في الـ init بتاع التطبيق
-// ===== window registrations - دي اللي بتخلي المنيو تشوف الدوال =====
+}// ✅ القسم النهائي لتسجيل الدوال (استبدل الجزء الأخير في كودك بهذا)
+
 window.openMushaf             = openMushaf;
 window.closeMushaf            = closeMushaf;
 window.renderMushaf           = renderMushaf;
@@ -2646,7 +2850,7 @@ window.toggleMushafViewMode   = toggleMushafViewMode;
 window.showAyahMenu           = showAyahMenu;
 window.closeAyahMenu          = closeAyahMenu;
 window.toggleAyahBookmark     = toggleAyahBookmark;
-window.copyToClipboard        = copyToClipboard; // ✅ اتأكد إن دي موجودة بالاسم ده
+window.copyToClipboard        = copyToClipboard;
 window.playAyah               = playAyah;
 window.showTafsir             = showTafsir;
 window.showBookmarks          = showBookmarks;
@@ -2661,12 +2865,41 @@ window.selectReciter          = selectReciter;
 window.filterReciters         = filterReciters;
 window.navUnifiedSearch       = navUnifiedSearch;
 window.loadPageText           = loadPageText;
-window.navTo                  = (p) => {
-    currentMushafPage = parseInt(p);
-    document.getElementById('mushaf-nav-panel')?.remove();
-    if (document.getElementById('mushaf-overlay')) renderMushaf();
-    else openMushaf(mushafMode);
+
+// ✅ دالة الانتقال الذكية والمصححة
+window.navTo = (p) => {
+    let pageNum = parseInt(p);
+    
+    // فحص المود المفتوح حالياً
+    const isTahajjud = (typeof mushafMode !== 'undefined' && mushafMode === 'tahajjud');
+    const max = isTahajjud ? 152 : 604;
+    
+    // التأمين
+    if (isNaN(pageNum)) pageNum = 1;
+    if (pageNum > max) pageNum = max;
+    if (pageNum < 1) pageNum = 1;
+
+    currentMushafPage = pageNum;
+
+    // إغلاق لوحة الانتقال لو مفتوحة
+    const navPanel = document.getElementById('mushaf-nav-panel');
+    if (navPanel) navPanel.remove();
+
+    // حفظ الصفحة في الكاش الصحيح
+    const storageKey = isTahajjud ? 'mushaf_last_page_tahajjud' : 'mushaf_last_page_reading';
+    localStorage.setItem(storageKey, currentMushafPage);
+    
+    // تحديث العرض
+    if (document.getElementById('mushaf-overlay')) {
+        renderMushaf();
+    } else {
+        openMushaf(mushafMode || 'reading');
+    }
 };
+
+</script>
+</body>
+</html>
 </script>
 </body>
 </html>
