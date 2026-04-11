@@ -53,15 +53,15 @@ const _supabase = supabase.createClient(SB_URL, SB_KEY);
 // 2. 🛠️ جلب اليوزر من الداتا (رابط أو كاش)
 function getAppUser() {
     const urlParams = new URLSearchParams(window.location.search);
-    const userFromUrl = urlParams.get('user'); 
-    if (userFromUrl) return userFromUrl;
-    
-    // لو مفيش في الرابط، بنجيبه من الـ localStorage اللي تطبيقك بيخزن فيه 'mouser'
-    return localStorage.getItem('mouser') || 'Guest'; 
+    const userFromUrl = urlParams.get('user');
+    if (userFromUrl && userFromUrl !== 'Guest') {
+        localStorage.setItem('mouser', userFromUrl);
+        return userFromUrl;
+    }
+    return localStorage.getItem('mouser') || 'Guest';
 }
 
 let currentUser = getAppUser();
-
 // 3. وظيفة التهيئة عند الفتح
 async function initMushafApp() {
     // تحديث الاسم الملون في الهيدر بناءً على اليوزر الحالي
@@ -142,29 +142,25 @@ function handleBack() {
         if(window.parent) window.parent.postMessage('closeMushaf', '*');
     }
 }
-// ✅ استبدل window.onload = initMushafApp بده
 window.onload = async function() {
+    // ✅ اقرأ الـ user من الـ URL
     const urlParams = new URLSearchParams(window.location.search);
     const userFromUrl = urlParams.get('user');
-    if (userFromUrl) {
+    
+    if (userFromUrl && userFromUrl !== 'Guest' && userFromUrl !== 'Mo') {
         currentUser = userFromUrl;
         localStorage.setItem('mouser', userFromUrl);
     } else {
-        currentUser = localStorage.getItem('mouser') || 'Guest';
+        // ✅ جرب الـ localStorage
+        const stored = localStorage.getItem('mouser');
+        if (stored && stored !== 'Guest') {
+            currentUser = stored;
+        }
     }
 
+    // ✅ شغّل التطبيق
     await initMushafApp();
-
-    // ✅ اظهر الـ mushaf-section مباشرة
-    const target = document.getElementById('mushaf-section');
-    if (target) {
-        target.style.display = 'flex';
-        target.style.flexDirection = 'column';
-        target.style.alignItems = 'center';
-        target.style.minHeight = '100dvh';
-        target.style.overflow = 'visible';
-    }
-}
+};
 async function initMushafApp() {
     // 1. أظهر الـ app
     const app = document.getElementById('journal-app');
