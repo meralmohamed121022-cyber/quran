@@ -722,78 +722,252 @@ function updatePageMeta(ayahs) {
 // ============================================================
 // ✅ جلب نص الصفحة - مع معالجة أحداث اللمس والضغط (Optimized for Android)
 // ============================================================
+// ─── دوال مساعدة للتهجد — عرّفها مرة واحدة خارج loadPageText ──────────────────
+
+function toggleTahajjudFS() {
+    const el = document.getElementById('tahajjud-wrapper');
+    const isFs = !!(document.fullscreenElement || document.webkitFullscreenElement);
+    if (!isFs) {
+        const req = el.requestFullscreen || el.webkitRequestFullscreen || el.mozRequestFullScreen;
+        if (req) req.call(el);
+    } else {
+        const exit = document.exitFullscreen || document.webkitExitFullscreen || document.mozCancelFullScreen;
+        if (exit) exit.call(document);
+    }
+}
+
+function _initTahajjudFullscreen() {
+    if (window._tahajjudFSHandler) {
+        document.removeEventListener('fullscreenchange', window._tahajjudFSHandler);
+        document.removeEventListener('webkitfullscreenchange', window._tahajjudFSHandler);
+    }
+    window._tahajjudFSHandler = () => {
+        const btn = document.getElementById('tahajjud-fs-btn');
+        const img = document.getElementById('tahajjud-image-view');
+        const isFs = !!(document.fullscreenElement || document.webkitFullscreenElement);
+        if (btn) btn.textContent = isFs ? '✕' : '⛶';
+        if (img) {
+            if (isFs) {
+                img.style.width      = '100%';
+                img.style.height     = '100vh';
+                img.style.objectFit  = 'contain';
+            } else {
+                img.style.width      = (window._tahajjudZoomW || (mushafZoom * 4)) + '%';
+                img.style.height     = '';
+                img.style.objectFit  = '';
+            }
+        }
+    };
+    document.addEventListener('fullscreenchange', window._tahajjudFSHandler);
+    document.addEventListener('webkitfullscreenchange', window._tahajjudFSHandler);
+}
+
+function _initTahajjudPinchZoom() {
+    const wrapper = document.getElementById('tahajjud-wrapper');
+    if (!wrapper) return;
+
+    // تنظيف المستمعين القدامى عند تقليب الصفحات
+    if (wrapper._pzHandlers) {
+        wrapper.removeEventListener('touchstart', wrapper._pzHandlers.s);
+        wrapper.removeEventListener('touchmove',  wrapper._pzHandlers.m);
+        wrapper.removeEventListener('touchend',   wrapper._pzHandlers.e);
+    }
+
+    window._tahajjudZoomW = mushafZoom * 4;
+    let lastDist = 0, pinching = false;
+
+    const onStart = e => {
+        if (e.touches.length === 2) {
+            pinching  = true;
+            lastDist  = _tahajjudDist(e.touches[0], e.touches[1]);
+            e.preventDefault(); // يوقف السويب فقط عند إصبعين
+        }
+    };
+
+    const onMove = e => {
+        if (!pinching || e.touches.length < 2) return;
+        e.preventDefault();
+        const d = _tahajjudDist(e.touches[0], e.touches[1]);
+        window._tahajjudZoomW = Math.min(Math.max(window._tahajjudZoomW * (d / lastDist), 40), 600);
+        lastDist = d;
+        const img = document.getElementById('tahajjud-image-view');
+        if (img) { img.style.transition = 'none'; img.style.width = window._tahajjudZoomW + '%'; }
+    };
+
+    const onEnd = e => { if (e.touches.length < 2) pinching = false; };
+
+    wrapper._pzHandlers = { s: onStart, m: onMove, e: onEnd };
+    wrapper.addEventListener('touchstart', onStart, { passive: false });
+    wrapper.addEventListener('touchmove',  onMove,  { passive: false });
+    wrapper.addEventListener('touchend',   onEnd);
+}
+
+function _tahajjudDist(t1, t2) {
+    return Math.hypot(t1.clientX - t2.clientX, t1.clientY - t2.clientY);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
+
 async function loadPageText(pageNum, retryCount = 0) {
     const container = document.getElementById('mushaf-page-content');
     if (!container) return;
 
+    // 1. إظهار اللودر عند أول محاولة تحميل
     if (retryCount === 0) {
-        container.innerHTML = `<div style="text-align:center;padding-top:35%;"><div style="font-size:35px;animation:spin 1s linear infinite;">⏳</div></div>`;
+        container.innerHTML = `
+            <div style="text-align:center;padding-top:35%;">
+                <div style="font-size:35px;animation:spin 1s linear infinite;">⏳</div>
+                <div style="color:#aaa;margin-top:10px;font-size:13px;">جاري تحميل الصفحة بجودة عالية...</div>
+            </div>`;
     }
 
+    // ============================================================
+    // 🌙 الجزء الخاص بمصحف التهجد (Supabase Direct Images) - أقصى جودة
+    // ============================================================
     if (mushafMode === 'tahajjud') {
         const formattedPage = String(pageNum).padStart(3, '0');
-        const fileName = `mushafjpg_Page_${formattedPage}.jpg`;
-        const imageUrl = `https://jwbcopyafwheyljvjexo.supabase.co/storage/v1/object/public/mushaf/tahajjud/${fileName}`;
+        const fileName  = `mushafjpg_Page_${formattedPage}.jpg`;
+        const imageUrl  = `https://jwbcopyafwheyljvjexo.supabase.co/storage/v1/object/public/mushaf/tahajjud/${fileName}`;
 
-        // ✅ هنا الـ Container واخد overflow: auto عشان يحبس الزوم جواه
         container.innerHTML = `
-            <div id="tahajjud-mushaf-scroller" style="width: 100%; height: 100%; overflow: auto; background: #fdfcf0; position: relative; border-radius: 12px; -webkit-overflow-scrolling: touch; display: block; text-align: center;">
-                
-                <img src="${imageUrl}" 
-                     id="tahajjud-image-view"
-                     style="display: inline-block; margin: 20px auto; 
-                            width: auto; max-width: 95%; height: auto;
-                            transform: scale(${mushafZoom / 30}); 
-                            transform-origin: top center;
-                            image-rendering: -webkit-optimize-contrast; 
-                            filter: contrast(1.06) brightness(1.02);
-                            transition: transform 0.2s ease-out;
-                            user-select: none; -webkit-user-drag: none;"
-                     onerror="this.src='https://via.placeholder.com/500x800?text=Error';">
+            <div id="tahajjud-wrapper"
+                 style="position:relative; text-align:center; width:100%; height:100%;
+                        overflow:auto; -webkit-overflow-scrolling:touch; background:#fdfcf0;">
 
-                <div style="position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); 
-                            display: flex; align-items: center; gap: 20px; background: rgba(0,0,0,0.5); 
-                            backdrop-filter: blur(10px); padding: 10px 25px; border-radius: 50px; 
-                            border: 1px solid rgba(255,255,255,0.2); z-index: 9999;">
-                    
-                    <button onclick="changeTahajjudZoom(5)" style="background:none; border:none; color:white; font-size:24px; cursor:pointer;">➕</button>
-                    <button onclick="changeTahajjudZoom(-5)" style="background:none; border:none; color:white; font-size:24px; cursor:pointer;">➖</button>
-                    
-                    <button id="full-page-btn" onclick="setTahajjudFullPage()" style="background:none; border:none; color:white; font-size:22px; cursor:pointer;" title="Fit View">🖼️</button>
-                    
-                    <button onclick="changeTahajjudZoom('reset')" style="background:none; border:none; color:white; font-size:24px; cursor:pointer;">🔄</button>
-                </div>
+                <!-- ⛶ زرار الفل سكرين -->
+                <button id="tahajjud-fs-btn"
+                        onclick="toggleTahajjudFS()"
+                        title="ملء الشاشة"
+                        style="position:fixed; top:12px; left:12px; z-index:9999;
+                               background:rgba(0,31,63,0.75); color:white; border:none;
+                               border-radius:10px; width:42px; height:42px; font-size:20px;
+                               cursor:pointer; backdrop-filter:blur(4px);
+                               display:flex; align-items:center; justify-content:center;
+                               -webkit-tap-highlight-color:transparent;">⛶</button>
+
+                <img src="${imageUrl}"
+                     id="tahajjud-image-view"
+                     style="max-width:none; width:${mushafZoom * 4}%; transition:width 0.2s;
+                            margin:auto; display:block;
+                            image-rendering:-webkit-optimize-contrast;
+                            image-rendering:crisp-edges;
+                            filter:contrast(1.06) brightness(1.02);
+                            -webkit-user-drag:none; user-select:none;"
+                     onerror="this.onerror=null; this.src='https://via.placeholder.com/500x800?text=الصفحة+${formattedPage}+قيد+الرفع';">
             </div>`;
-        
+
+        // تفعيل الفل سكرين والبينش زوم
+        _initTahajjudPinchZoom();
+        _initTahajjudFullscreen();
+
         if (typeof updateTahajjudMeta === 'function') updateTahajjudMeta(pageNum);
         return;
     }
-    // ... باقي كود الـ API يفضل كما هو
-}
 
-// ✅ دالة الزوم بالـ Scale (المحبوس جوه الإطار)
-function changeTahajjudZoom(amount) {
-    const img = document.getElementById('tahajjud-image-view');
-    if (!img) return;
-    
-    if (typeof window.mushafZoom === 'undefined') window.mushafZoom = 30;
+    // ============================================================
+    // 📖 الجزء الخاص بمصحف القراءة (API) - بدون أي تغيير
+    // ============================================================
+    try {
+        const ctrl  = new AbortController();
+        const timer = setTimeout(() => ctrl.abort(), 10000);
 
-    if (amount === 'reset') {
-        window.mushafZoom = 30;
-    } else {
-        window.mushafZoom += amount;
-        if (window.mushafZoom < 10) window.mushafZoom = 10;
-        if (window.mushafZoom > 200) window.mushafZoom = 200;
+        const requests = [
+            fetch(`https://api.alquran.cloud/v1/page/${pageNum}/quran-uthmani`, { signal: ctrl.signal })
+        ];
+
+        if (typeof mushafShowTranslation !== 'undefined' && mushafShowTranslation) {
+            requests.push(fetch(`https://api.alquran.cloud/v1/page/${pageNum}/en.sahih`, { signal: ctrl.signal }));
+        }
+
+        const responses = await Promise.all(requests);
+        clearTimeout(timer);
+
+        const arJson = await responses[0].json();
+        const enJson = responses[1] ? await responses[1].json() : null;
+
+        if (arJson.code !== 200) throw new Error('API error');
+
+        const ayahs   = arJson.data.ayahs;
+        const enAyahs = enJson?.data?.ayahs || [];
+
+        if (typeof updatePageMeta === 'function') updatePageMeta(ayahs);
+
+        // وضع عرض الصور للمصحف العادي
+        if (typeof mushafViewMode !== 'undefined' && mushafViewMode === 'image') {
+            container.innerHTML = `
+                <div style="text-align:center;width:100%;height:100%;overflow:auto;">
+                    <img id="mushaf-image-view"
+                         src="https://quran.ksu.edu.sa/png_big/${pageNum}.png"
+                         style="max-width:none; width:${mushafZoom * 4}%; transition:width 0.3s;
+                                margin:auto; display:block; image-rendering:-webkit-optimize-contrast;">
+                </div>`;
+            return;
+        }
+
+        const surahs = {};
+        ayahs.forEach((a, i) => {
+            const k = a.surah.number;
+            if (!surahs[k]) surahs[k] = { name: a.surah.name, ayahs: [], enAyahs: [] };
+            surahs[k].ayahs.push(a);
+            if (enAyahs[i]) surahs[k].enAyahs.push(enAyahs[i]);
+        });
+
+        let html = '';
+        for (const key in surahs) {
+            const s         = surahs[key];
+            const firstAyah = s.ayahs[0];
+            if (firstAyah.numberInSurah === 1) {
+                html += `<div style="text-align:center;margin:15px 0 10px;background:linear-gradient(135deg,var(--dark-blue,#001f3f),#003366);color:white;border-radius:12px;padding:12px;font-family:'Amiri Quran',serif;font-size:20px;box-shadow:0 3px 10px rgba(0,0,0,0.2);">۩ ${s.name} ۩</div>`;
+                if (firstAyah.surah.number !== 1 && firstAyah.surah.number !== 9) {
+                    html += `<div style="text-align:center;font-family:'Amiri Quran',serif;font-size:clamp(18px,5vw,24px);color:var(--dark-blue,#001f3f);margin:10px 0;line-height:2;">بِسۡمِ ٱللَّهِ ٱلرَّحۡمَٰنِ ٱلرَّحِيمِ</div>`;
+                }
+            }
+            html += `<div style="text-align:justify;direction:rtl;padding:10px;line-height:2.5;-webkit-font-smoothing:antialiased;">`;
+            s.ayahs.forEach((a, i) => {
+                const enText          = s.enAyahs[i]?.text || '';
+                const isAyahBookmarked = typeof quranBookmarks !== 'undefined' &&
+                    quranBookmarks.some(b => Number(b.surah_number) === a.surah.number && Number(b.ayah_number) === a.numberInSurah);
+                const safeText  = a.text.substring(0, 40).replace(/'/g, "\\\\'").replace(/"/g, '&quot;');
+                const safeSName = a.surah.name.replace(/'/g, "\\\\'");
+                const bg        = isAyahBookmarked ? 'rgba(255,133,27,0.2)' : 'transparent';
+                html += `<span id="ayah-${a.surah.number}-${a.numberInSurah}" class="mushaf-text-span"
+                              style="display:inline;line-height:2.2;font-family:'Amiri Quran',serif;
+                                     font-size:${mushafZoom}px;color:#1a1a2e;background:${bg};
+                                     border-radius:4px;padding:0 2px;transition:background 0.4s;"
+                         >${a.text}<span class="ayah-num-btn"
+                              data-surah="${a.surah.number}" data-surah-name="${safeSName}"
+                              data-ayah="${a.numberInSurah}" data-text="${safeText}"
+                              style="display:inline-block;width:28px;height:28px;
+                                     background:var(--orange,#ff851b);color:white;border-radius:50%;
+                                     font-size:11px;text-align:center;line-height:28px;
+                                     margin:0 4px;cursor:pointer;">${a.numberInSurah}</span>${mushafShowTranslation && enText
+                             ? `<span style="display:block;font-size:14px;color:#666;direction:ltr;
+                                            text-align:left;margin:10px 0;font-family:sans-serif;
+                                            font-style:italic;">"${enText}"</span>`
+                             : ''}</span> `;
+            });
+            html += `</div>`;
+        }
+        container.innerHTML = html;
+
+        if (typeof pendingHighlight !== 'undefined' && pendingHighlight) {
+            const { surah, ayah } = pendingHighlight;
+            pendingHighlight = null;
+            setTimeout(() => { if (typeof scrollAndHighlightAyah === 'function') scrollAndHighlightAyah(surah, ayah); }, 300);
+        }
+
+    } catch (err) {
+        if (retryCount < 3) return loadPageText(pageNum, retryCount + 1);
+        container.innerHTML = `
+            <div style="text-align:center;padding:40px;">
+                <button onclick="loadPageText(${pageNum})"
+                        style="background:var(--orange);color:white;border:none;
+                               padding:10px 20px;border-radius:10px;cursor:pointer;">
+                    🔄 إعادة المحاولة
+                </button>
+            </div>`;
     }
-    
-    // بنغير الـ Scale مش الـ Width عشان الصورة متخرجش برا الإطار وتفضل حادة
-    img.style.transform = `scale(${window.mushafZoom / 30})`;
-}
-
-// ✅ دالة الـ Fit View (تخلي الصورة تملأ المربع بالظبط)
-function setTahajjudFullPage() {
-    window.mushafZoom = 32; // القيمة اللي بتخلي أغلب الموبايلات تفرش الصورة صح
-    changeTahajjudZoom(0);
 }
 // ✅ دالة مساعدة لتحديث اسم السورة في مصحف التهجد بناءً على الفهرس
 function updateTahajjudMeta(page) {
