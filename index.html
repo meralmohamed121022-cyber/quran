@@ -696,7 +696,10 @@ body.is-android #fingerprint-container {
 </head>
 <body>
 <div id="auth-container">
-    <h2 id="auth-title">Mo's Quran 📖</h2>
+   <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+    <h2 id="auth-title" style="margin:0;">Mo's Quran 📖</h2>
+    <div onclick="handleBack()" style="cursor:pointer; font-size:24px; color:#e74c3c;">✕</div>
+</div>
     <div class="auth-tabs">
         <div id="tab-login" class="auth-tab active" onclick="setMode('login')">Login</div>
         <div id="tab-register" class="auth-tab" onclick="setMode('register')">Register</div>
@@ -708,20 +711,35 @@ body.is-android #fingerprint-container {
 
 <div id="journal-app">
     <div class="top-bar">
-        <div class="user-profile">
+        <div class="user-profile" style="display: flex; align-items: center; gap: 15px;">
+            <div onclick="handleBack()" 
+                 style="cursor:pointer; font-size:24px; color:#e74c3c; font-weight: bold; -webkit-tap-highlight-color: transparent; user-select: none;">
+                 ✕
+            </div>
+            
             <div class="avatar-word" id="user-avatar-text">NAME</div>
         </div>
-        <button id="logout-btn" class="auth-btn" style="padding:6px 15px;font-size:12px;width:auto; background:#e74c3c;" onclick="logout()">Logout</button>
+
+        <button id="logout-btn" class="auth-btn" 
+                style="padding:6px 15px; font-size:12px; width:auto; background:#e74c3c; border:none; color:white; border-radius:8px; cursor:pointer;" 
+                onclick="logout()">
+                Logout
+        </button>
     </div>
 
     <div id="main-view-container" style="width:100%; display:flex; flex-direction:column; align-items:center;">
+        
         <div id="mushaf-section" style="width: 100%; display: flex; flex-direction: column; align-items: center; padding-bottom: 30px;">
+            
             <div id="mushaf-selector" class="category-box-container" style="width: 92%; margin-top: 20px;">
                 </div>
+            
             <div id="mushaf-bookmarks-preview" style="width: 92%; margin-top: 20px;">
                 </div>
+            
         </div>
-    </div>
+
+        </div>
 </div>
 
 <div id="lightbox">
@@ -1465,29 +1483,50 @@ function renderAzkar(customList = null) {
 
     // --- Back Button Navigation ---
     let lastBackPress = 0;
-   function handleBack() {
-    // 1. Close Modals/Popups first
+  function handleBack() {
+    // 1. إغلاق المنبه أولاً
     if (isAlarmActive) {
         stopAlarmUI();
         return;
     }
-    if (document.getElementById('editModal').style.display === 'block') {
+
+    // 2. إغلاق المودالات (تعديل، حذف، أو المودال الفني)
+    if (document.getElementById('editModal')?.style.display === 'block') {
         closeModal();
         return;
     }
-    if (document.getElementById('confirmModal').style.display === 'block') {
+    if (document.getElementById('confirmModal')?.style.display === 'block') {
         closeConfirm();
         return;
     }
-    // ← التعديل: بدل 'flex' نتحقق إن مش none أو فاضي
+    if (document.getElementById('artModal')?.style.display === 'flex') {
+        closeArtModal();
+        return;
+    }
+
+    // 3. إغلاق اللايت بوكس (الصور والملفات والتفسير)
     const lb = document.getElementById('lightbox');
-    if (lb.style.display !== 'none' && lb.style.display !== '') {
+    if (lb && lb.style.display !== 'none' && lb.style.display !== '') {
         lb.style.display = 'none';
         lb.innerHTML = '';
         return;
     }
 
-    // 2. Azkar Section Navigation
+    // 4. 🔥 جديد: إغلاق المصحف أو لوحاته
+    if (document.getElementById('mushaf-overlay')) {
+        // لو فيه لوحة اختيار شيخ أو فهرس مفتوحة فوق المصحف، اقفلها هي الأول
+        if (document.getElementById('reciter-panel') || document.getElementById('mushaf-nav-panel') || document.getElementById('bookmarks-panel')) {
+            document.getElementById('reciter-panel')?.remove();
+            document.getElementById('reciter-backdrop')?.remove();
+            document.getElementById('mushaf-nav-panel')?.remove();
+            document.getElementById('bookmarks-panel')?.remove();
+        } else {
+            closeMushaf(); // لو المصحف بس اللي مفتوح، اقفله خالص
+        }
+        return;
+    }
+
+    // 5. التنقل داخل قسم الأذكار
     if (currentView === 'azkar') {
         if (isAzkarFocusMode) {
             isAzkarFocusMode = false;
@@ -1500,20 +1539,20 @@ function renderAzkar(customList = null) {
         return;
     }
 
-    // 3. History View Navigation
-    if (currentView === 'history') {
+    // 6. لو في الأرشيف (History) أو الملفات، يرجع للرئيسية
+    if (currentView === 'history' || currentView === 'files' || currentView === 'mushaf') {
         changeView('active');
         return;
     }
 
-    // 4. Search active - Clear it
+    // 7. مسح نص البحث لو نشط
     if (document.getElementById('fuzzySearch').value !== '') {
         document.getElementById('fuzzySearch').value = '';
-        if (currentView === 'azkar') renderAzkar(); else renderStructure(rawData);
+        if (currentView === 'azkar') renderAzkar(); else fetchNotes();
         return;
     }
 
-    // 5. Exit App with safety (Double tap logic)
+    // 8. الخروج من التطبيق (نظام الضغطة المزدوجة)
     const now = Date.now();
     if (now - lastBackPress < 2000) {
         if (typeof Android !== 'undefined' && Android.exitApp) {
