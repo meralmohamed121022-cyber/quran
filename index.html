@@ -434,7 +434,7 @@ async function openMushaf(mode, targetPage = null) {
 // ✅ الـ Overlay الرئيسي
 // ============================================================
 function renderMushaf() {
-    // 1. إضافة الستايلات المتطورة للهيدر والزراير
+    // 1. إضافة الستايلات المتطورة والـ CSS Art للأيقونات (Back, Play, Pause, Stop, Loop, Bookmark)
     if (!document.getElementById('mushaf-responsive-css')) {
         const s = document.createElement('style');
         s.id = 'mushaf-responsive-css';
@@ -445,25 +445,37 @@ function renderMushaf() {
                 .mushaf-zoom-slider { display: block !important; width: 70px !important; }
             }
             .mushaf-toolbar-btn {
-                width:34px; height:34px; flex-shrink:0;
+                width:36px; height:36px; flex-shrink:0;
                 border-radius:10px; display:flex; align-items:center;
-                justify-content:center; cursor:pointer; font-size:16px;
+                justify-content:center; cursor:pointer; 
                 background:rgba(255,255,255,0.1); transition:all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-                border: 1px solid rgba(255,255,255,0.05);
+                border: 1px solid rgba(255,255,255,0.05); position: relative;
             }
             .mushaf-toolbar-btn:active { transform: scale(0.9); background:rgba(255,255,255,0.3) !important; }
+
+            /* --- CSS Art Icons --- */
+            .icon-back-arrow { width: 10px; height: 10px; border-left: 2.5px solid #fff; border-bottom: 2.5px solid #fff; transform: rotate(45deg); margin-left: 3px; }
+            .icon-play { width: 0; height: 0; border-top: 7px solid transparent; border-bottom: 7px solid transparent; border-left: 11px solid #2ecc71; margin-left: 3px; }
+            .icon-pause { width: 10px; height: 12px; display: flex; justify-content: space-between; }
+            .icon-pause::before, .icon-pause::after { content:''; width: 3px; height: 100%; background: #2ecc71; border-radius: 1px; }
+            .icon-stop { width: 12px; height: 12px; background: #ff453a; border-radius: 2px; }
+            .icon-loop { width: 16px; height: 16px; border: 2px solid #fff; border-radius: 50%; border-top-color: transparent; position: relative; }
+            .icon-loop::after { content: ''; position: absolute; top: -3px; right: -4px; border: 4px solid transparent; border-bottom-color: #fff; transform: rotate(45deg); }
+            .icon-bookmark { width: 10px; height: 14px; background: #fff; clip-path: polygon(0% 0%, 100% 0%, 100% 100%, 50% 80%, 0% 100%); }
+            .icon-bookmark.active { background: var(--orange, #ff851b); }
+
+            #btn-stop-audio { background: rgba(255, 69, 58, 0.2); display: none; }
             
-            /* زرار الإيقاف المميز */
-            #btn-stop-audio {
-                background: rgba(255, 69, 58, 0.25);
-                color: #ff453a;
-                border: 1px solid rgba(255, 69, 58, 0.3);
-                display: none; /* يظهر فقط عند التشغيل */
-            }
-            .mobile-zoom-container {
-                display: flex; justify-content: center; align-items: center;
-                background: rgba(255, 255, 255, 0.1); padding: 4px 8px;
-                border-radius: 10px; margin-top: 4px; width: 100%;
+            #btn-close-mushaf {
+                position: absolute;
+                bottom: -46px; /* ينزل فوق سطح بوكس البحث */
+                left: 12px;
+                z-index: 101;
+                background: var(--dark-blue, #001f3f) !important;
+                border: 1.5px solid var(--orange, #ff851b) !important;
+                border-radius: 50%;
+                width: 38px; height: 38px;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.3);
             }
         `;
         document.head.appendChild(s);
@@ -485,62 +497,52 @@ function renderMushaf() {
     overlay.id = 'mushaf-overlay';
     overlay.style.cssText = `position:fixed; top:0; left:0; width:100vw; height:100vh; background:#fdfcf0; z-index:2147483647; display:flex; flex-direction:column; overflow:hidden;`;
 
-    // الهيدر العلوي - مع زرار الإيقاف، الفهرس، والأوتوبلاي
     overlay.innerHTML = `
         <div style="flex-shrink:0; background:var(--dark-blue,#001f3f);
-            padding:10px 12px; display:flex; align-items:center; gap:8px;
-            box-shadow:0 2px 12px rgba(0,0,0,0.4); justify-content:space-between;">
+            padding:10px 12px; display:flex; align-items:center; gap:8px; position:relative;
+            box-shadow:0 2px 12px rgba(0,0,0,0.4); justify-content:space-between; z-index:100;">
 
-            <div id="btn-close-mushaf" class="mushaf-toolbar-btn"
-                style="background:rgba(255,80,80,0.3); color:white;">✕</div>
+            <div id="btn-close-mushaf" class="mushaf-toolbar-btn">
+                <span class="icon-back-arrow"></span>
+            </div>
 
             <div style="flex:1; min-width:0; text-align:right; overflow:hidden; padding:0 10px;">
-                <div id="mushaf-surah-title"
-                    style="color:var(--orange,#ff851b); font-weight:bold;
-                    font-size:clamp(12px, 4vw, 16px);
-                    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
-                    direction:rtl;">
+                <div id="mushaf-surah-title" style="color:var(--orange,#ff851b); font-weight:bold; font-size:clamp(12px, 4vw, 16px); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; direction:rtl;">
                     ${mushafMode === 'tahajjud' ? '🌙' : '📖'} جاري التحميل...
                 </div>
-                <div id="mushaf-page-meta"
-                    style="color:white; font-size:11px; opacity:0.8; direction:rtl;">
+                <div id="mushaf-page-meta" style="color:white; font-size:11px; opacity:0.8; direction:rtl;">
                     ص ${currentMushafPage} • ج ${getJuzFromPage(currentMushafPage)}
                 </div>
             </div>
 
             <div style="display:flex; flex-direction:column; align-items:center; gap:4px; flex-shrink:0;">
                 <div style="display:flex; align-items:center; gap:6px;">
-                    <div id="btn-stop-audio" class="mushaf-toolbar-btn">🛑</div>
+                    <div id="btn-stop-audio" class="mushaf-toolbar-btn"><span class="icon-stop"></span></div>
+
+                    <div id="btn-main-play" class="mushaf-toolbar-btn" style="background:rgba(46, 204, 113, 0.15);">
+                        <span id="main-play-icon" class="icon-play"></span>
+                    </div>
 
                     <div id="btn-autoplay" class="mushaf-toolbar-btn" 
                          style="background:${window.isContinuousPlay ? 'var(--orange,#ff851b)' : 'rgba(255,255,255,0.1)'};" title="تشغيل متواصل">
-                         ${window.isContinuousPlay ? '🔁' : '▶️'}
+                         <span class="icon-loop" style="border-color:${window.isContinuousPlay ? '#001f3f' : '#fff'}"></span>
                     </div>
+
                     <div id="btn-view-mode" class="mushaf-toolbar-btn">${mushafViewMode === 'text' ? '🖼️' : '📝'}</div>
                     <div id="btn-show-nav" class="mushaf-toolbar-btn">🗂️</div>
-                    <div id="bookmark-btn" class="mushaf-toolbar-btn"
-                        style="background:${isPageBookmarked ? 'var(--orange,#ff851b)' : 'rgba(255,255,255,0.1)'};">${isPageBookmarked ? '🔖' : '🤍'}</div>
+                    <div id="bookmark-btn" class="mushaf-toolbar-btn">
+                        <span class="icon-bookmark ${isPageBookmarked ? 'active' : ''}"></span>
+                    </div>
                 </div>
                 <div class="mobile-zoom-container">
-                    <input id="zoom-range-input" type="range" min="14" max="42" value="${mushafZoom}"
-                        class="mushaf-zoom-slider"
-                        style="accent-color:var(--orange,#ff851b); height:16px;">
+                    <input id="zoom-range-input" type="range" min="14" max="42" value="${mushafZoom}" class="mushaf-zoom-slider" style="accent-color:var(--orange,#ff851b); height:16px;">
                 </div>
             </div>
         </div>
 
-        <div style="flex-shrink:0; background:#001f3f; padding:8px 12px; display:flex; gap:8px; align-items:center; min-width:0;">
-            <input id="mushaf-search-input" type="text" placeholder="🔍 بحث في الآيات..."
-                style="flex:1; min-width:0; padding:9px 14px; border-radius:12px;
-                border:1.5px solid var(--orange,#ff851b); background:rgba(255,255,255,0.08);
-                color:white; font-size:14px; direction:rtl; outline:none;
-                font-family:'Amiri Quran',serif;">
-
-            <div id="btn-reciter-picker"
-                style="flex-shrink:0; min-width:100px; width:auto; padding:6px 12px; border-radius:10px;
-                border:1.5px solid var(--orange,#ff851b); background:#002d5a; color:white;
-                font-size:12px; cursor:pointer; display:flex; align-items:center; gap:6px;
-                justify-content:center; white-space:nowrap; box-sizing:border-box;">
+        <div style="flex-shrink:0; background:#001f3f; padding:8px 12px 8px 60px; display:flex; gap:8px; align-items:center; min-width:0;">
+            <input id="mushaf-search-input" type="text" placeholder="🔍 بحث في الآيات..." style="flex:1; min-width:0; padding:9px 14px; border-radius:12px; border:1.5px solid var(--orange,#ff851b); background:rgba(255,255,255,0.08); color:white; font-size:14px; direction:rtl; outline:none; font-family:'Amiri Quran',serif;">
+            <div id="btn-reciter-picker" style="flex-shrink:0; min-width:100px; width:auto; padding:6px 12px; border-radius:10px; border:1.5px solid var(--orange,#ff851b); background:#002d5a; color:white; font-size:12px; cursor:pointer; display:flex; align-items:center; gap:6px; justify-content:center; white-space:nowrap; box-sizing:border-box;">
                 <span>🎙️</span>
                 <span id="current-reciter-label" style="font-weight:bold;">
                     ${(RECITERS_AYAH[currentReciter] || RECITERS_SURAH[currentReciter] || 'اختر القارئ').replace('🎙️ ', '')}
@@ -567,7 +569,7 @@ function renderMushaf() {
     // --- ربط الأحداث ---
     document.getElementById('btn-close-mushaf').addEventListener('click', closeMushaf);
     document.getElementById('btn-view-mode').addEventListener('click', toggleMushafViewMode);
-    document.getElementById('btn-show-nav').addEventListener('click', showMushafNav); // الفهرس هنا ✅
+    document.getElementById('btn-show-nav').addEventListener('click', showMushafNav);
     document.getElementById('bookmark-btn').addEventListener('click', togglePageBookmark);
     document.getElementById('btn-reciter-picker').addEventListener('click', showReciterPicker);
     document.getElementById('btn-prev-page').addEventListener('click', () => changeMushafPage(-1));
@@ -577,34 +579,43 @@ function renderMushaf() {
     document.getElementById('mushaf-search-input').addEventListener('input', function() { mushafFuzzySearch(this.value); });
     document.getElementById('page-jump-input').addEventListener('change', function() { jumpMushafPage(this.value); });
 
-    // ربط زرار الإيقاف 🛑
+    // ربط زرار Play الرئيسي
+    document.getElementById('btn-main-play').addEventListener('click', function() {
+        const icon = document.getElementById('main-play-icon');
+        if (currentAudio && !currentAudio.paused) {
+            stopAudio();
+            icon.className = 'icon-play';
+            document.getElementById('btn-stop-audio').style.display = 'none';
+        } else {
+            const firstAyahBtn = document.querySelector('.ayah-num-btn');
+            if (firstAyahBtn) {
+                playAyah(parseInt(firstAyahBtn.dataset.surah), 1);
+                icon.className = 'icon-pause';
+                document.getElementById('btn-stop-audio').style.display = 'flex';
+            }
+        }
+    });
+
     document.getElementById('btn-stop-audio').addEventListener('click', function() {
         stopAudio();
         this.style.display = 'none';
+        document.getElementById('main-play-icon').className = 'icon-play';
         document.querySelectorAll('[id^="play-btn-"]').forEach(b => b.innerHTML = '▶️');
-        window.currentPlayingSurah = null;
     });
 
-    // ربط زر التشغيل المتواصل الذكي
     document.getElementById('btn-autoplay').addEventListener('click', function() {
         window.isContinuousPlay = !window.isContinuousPlay;
         
-        // لو قفلنا الأوتوبلاي وكان فيه صوت سورة شغال، نوقفه
-        if (!window.isContinuousPlay && currentAudio && !currentAudio.paused) {
-            stopAudio();
-            document.getElementById('btn-stop-audio').style.display = 'none';
-            document.querySelectorAll('[id^="play-btn-"]').forEach(b => b.innerHTML = '▶️');
+        if (window.isContinuousPlay) {
+            if (!RECITERS_SURAH[currentReciter]) {
+                currentReciter = Object.keys(RECITERS_SURAH)[0];
+                const label = document.getElementById('current-reciter-label');
+                if (label) label.innerText = RECITERS_SURAH[currentReciter].replace('🎙️ ', '');
+            }
         }
 
-        // تحويل القارئ للقائمة المناسبة
-        if (!window.isContinuousPlay && RECITERS_SURAH[currentReciter]) {
-            currentReciter = 'Minshawi_Murattal_128kbps';
-            const lbl = document.getElementById('current-reciter-label');
-            if (lbl) lbl.innerText = 'المنشاوي (مرتل)';
-        }
-        
-        this.innerHTML = window.isContinuousPlay ? '🔁' : '▶️';
         this.style.background = window.isContinuousPlay ? 'var(--orange,#ff851b)' : 'rgba(255,255,255,0.1)';
+        this.querySelector('.icon-loop').style.borderColor = window.isContinuousPlay ? '#001f3f' : '#fff';
         
         if (document.getElementById('reciter-panel')) showReciterPicker();
     });
@@ -612,7 +623,7 @@ function renderMushaf() {
     localStorage.setItem(`mushaf_last_page_${mushafMode}`, currentMushafPage);
     loadPageText(currentMushafPage);
 
-    // منطق السحب (Swipe)
+    // سحب الصفحة (Swipe)
     setTimeout(() => {
         const pc = document.getElementById('mushaf-page-content');
         if (!pc) return;
