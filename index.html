@@ -735,24 +735,23 @@ async function loadPageText(pageNum, retryCount = 0) {
     }
 
     // ============================================================
-    // ✅ الجزء الخاص بمصحف التهجد (Canva Embed) - تحسين الجودة برمجياً
+    // ✅ الجزء الخاص بمصحف التهجد (Canva Embed) - تحسين الوضوح والحدة
     // ============================================================
     if (mushafMode === 'tahajjud') {
         const canvaBaseUrl = "https://www.canva.com/design/DAHGkdoy70Q/7aEXDyRBuOLdWH31nX5Pmw/view?embed";
         const pageUrl = `${canvaBaseUrl}#${pageNum}`;
 
-        // ملاحظة: تم استخدام CSS لزيادة الحدة (Sharpness) وتحسين الرندر في الموبايل
         container.innerHTML = `
             <div style="position: relative; width: 100%; height: 100%; overflow: hidden; border-radius: 12px; background: #1a1a1a; box-shadow: inset 0 0 20px rgba(0,0,0,0.5); -webkit-overflow-scrolling: touch; perspective: 1000px;">
                 <iframe id="canva-tahajjud-frame"
                         loading="lazy" 
                         style="position: absolute; width: 100%; height: 100%; top: 0; left: 0; border: none; padding: 0; margin: 0;
-                               /* 🚀 فلاتر زيادة الحدة والتباين لمنع التغبيش */
-                               filter: contrast(1.08) brightness(1.03) saturate(1.05);
-                               -webkit-filter: contrast(1.08) brightness(1.03) saturate(1.05);
+                               /* 🚀 فلتر تحسين حدة النصوص ومنع التغبيش عند الزوم */
+                               filter: contrast(1.10) brightness(1.02);
+                               -webkit-filter: contrast(1.10) brightness(1.02);
                                image-rendering: -webkit-optimize-contrast; 
                                image-rendering: crisp-edges;
-                               /* تفعيل تسريع الهاردوير */
+                               /* تفعيل تسريع الهاردوير لمنع الـ Blur */
                                -webkit-transform: translateZ(0); 
                                transform: translateZ(0);
                                backface-visibility: hidden; 
@@ -769,7 +768,7 @@ async function loadPageText(pageNum, retryCount = 0) {
     }
 
     // ============================================================
-    // 📖 الجزء الخاص بمصحف القراءة (API)
+    // 📖 الجزء الخاص بمصحف القراءة (API) - الحفاظ على جودة الصور والنصوص
     // ============================================================
     try {
         const ctrl = new AbortController();
@@ -794,18 +793,16 @@ async function loadPageText(pageNum, retryCount = 0) {
         const ayahs = arJson.data.ayahs;
         const enAyahs = enJson?.data?.ayahs || [];
         
-        // تحديث معلومات الهيدر (اسم السورة والجزء)
         if (typeof updatePageMeta === 'function') updatePageMeta(ayahs);
 
-        // وضع عرض الصور (المصحف المصور العادي)
+        // وضع عرض الصور (المصحف المصور العادي) مع فلتر الحدة
         if (typeof mushafViewMode !== 'undefined' && mushafViewMode === 'image') {
             container.innerHTML = `
                 <div style="text-align:center;width:100%;height:100%;overflow:auto;">
                     <img id="mushaf-image-view"
                         src="https://quran.ksu.edu.sa/png_big/${pageNum}.png"
-                        style="max-width:none;width:${mushafZoom * 4}%;transition:width 0.3s;margin:auto;display:block;
-                               image-rendering: -webkit-optimize-contrast; 
-                               filter: contrast(1.05);">
+                        style="max-width:none; width:${mushafZoom * 4}%; transition:width 0.3s; margin:auto; display:block; 
+                               image-rendering: -webkit-optimize-contrast; filter: contrast(1.08);">
                 </div>`;
             return;
         }
@@ -837,7 +834,7 @@ async function loadPageText(pageNum, retryCount = 0) {
                 }
             }
             
-            html += `<div style="text-align:justify;direction:rtl;padding:10px;line-height:2.5;">`;
+            html += `<div style="text-align:justify;direction:rtl;padding:10px;line-height:2.5; -webkit-font-smoothing: antialiased;">`;
             s.ayahs.forEach((a, i) => {
                 const enText = s.enAyahs[i]?.text || '';
                 const isAyahBookmarked = typeof quranBookmarks !== 'undefined' && quranBookmarks.some(
@@ -869,7 +866,6 @@ async function loadPageText(pageNum, retryCount = 0) {
         }
         container.innerHTML = html;
 
-        // إعادة تفعيل التظليل لو فيه سكرول معلق
         if (typeof pendingHighlight !== 'undefined' && pendingHighlight) {
             const { surah, ayah } = pendingHighlight;
             pendingHighlight = null;
