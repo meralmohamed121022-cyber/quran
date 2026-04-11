@@ -677,6 +677,8 @@ function renderMushaf() {
         let sx = 0;
         pc.addEventListener('touchstart', e => sx = e.touches[0].clientX, { passive: true });
         pc.addEventListener('touchend', e => {
+                if (window._tahajjudIsFS) return; // ← لو فل سكرين: أوقف السويب تماماً
+
             const dx = e.changedTouches[0].clientX - sx;
             if (Math.abs(dx) > 70) dx > 0 ? changeMushafPage(1) : changeMushafPage(-1);
         }, { passive: true });
@@ -741,27 +743,31 @@ function _initTahajjudFullscreen() {
         document.removeEventListener('fullscreenchange', window._tahajjudFSHandler);
         document.removeEventListener('webkitfullscreenchange', window._tahajjudFSHandler);
     }
+
     window._tahajjudFSHandler = () => {
         const btn = document.getElementById('tahajjud-fs-btn');
         const img = document.getElementById('tahajjud-image-view');
         const isFs = !!(document.fullscreenElement || document.webkitFullscreenElement);
+
+        window._tahajjudIsFS = isFs; // ← الفلاج اللي يعرف مستمع السويب
+
         if (btn) btn.textContent = isFs ? '✕' : '⛶';
         if (img) {
             if (isFs) {
-                img.style.width      = '100%';
-                img.style.height     = '100vh';
-                img.style.objectFit  = 'contain';
+                img.style.width     = '100%';
+                img.style.height    = '100vh';
+                img.style.objectFit = 'contain';
             } else {
-                img.style.width      = (window._tahajjudZoomW || (mushafZoom * 4)) + '%';
-                img.style.height     = '';
-                img.style.objectFit  = '';
+                img.style.width     = (window._tahajjudZoomW || (mushafZoom * 4)) + '%';
+                img.style.height    = '';
+                img.style.objectFit = '';
             }
         }
     };
+
     document.addEventListener('fullscreenchange', window._tahajjudFSHandler);
     document.addEventListener('webkitfullscreenchange', window._tahajjudFSHandler);
 }
-
 function _initTahajjudPinchZoom() {
     const wrapper = document.getElementById('tahajjud-wrapper');
     if (!wrapper) return;
