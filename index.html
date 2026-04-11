@@ -452,7 +452,6 @@ async function openMushaf(mode, targetPage = null) {
 // ✅ الـ Overlay الرئيسي
 // ============================================================
 function renderMushaf() {
-    // 1. إضافة الستايلات المتطورة والـ CSS Art للأيقونات
     if (!document.getElementById('mushaf-responsive-css')) {
         const s = document.createElement('style');
         s.id = 'mushaf-responsive-css';
@@ -470,8 +469,6 @@ function renderMushaf() {
                 border: 1px solid rgba(255,255,255,0.05); position: relative;
             }
             .mushaf-toolbar-btn:active { transform: scale(0.9); background:rgba(255,255,255,0.3) !important; }
-
-            /* --- CSS Art Icons --- */
             .icon-back-arrow { width: 10px; height: 10px; border-left: 2.5px solid #fff; border-bottom: 2.5px solid #fff; transform: rotate(45deg); margin-left: 3px; }
             .icon-play { width: 0; height: 0; border-top: 7px solid transparent; border-bottom: 7px solid transparent; border-left: 11px solid #2ecc71; margin-left: 3px; }
             .icon-pause { width: 10px; height: 12px; display: flex; justify-content: space-between; }
@@ -481,18 +478,12 @@ function renderMushaf() {
             .icon-loop::after { content: ''; position: absolute; top: -3px; right: -4px; border: 4px solid transparent; border-bottom-color: #fff; transform: rotate(45deg); }
             .icon-bookmark { width: 10px; height: 14px; background: #fff; clip-path: polygon(0% 0%, 100% 0%, 100% 100%, 50% 80%, 0% 100%); }
             .icon-bookmark.active { background: var(--orange, #ff851b); }
-
             #btn-stop-audio { background: rgba(255, 69, 58, 0.2); display: none; }
-            
             #btn-close-mushaf {
-                position: absolute;
-                bottom: -46px; 
-                left: 12px;
-                z-index: 101;
+                position: absolute; bottom: -46px; left: 12px; z-index: 101;
                 background: var(--dark-blue, #001f3f) !important;
                 border: 1.5px solid var(--orange, #ff851b) !important;
-                border-radius: 50%;
-                width: 38px; height: 38px;
+                border-radius: 50%; width: 38px; height: 38px;
                 box-shadow: 0 4px 12px rgba(0,0,0,0.3);
             }
         `;
@@ -519,11 +510,9 @@ function renderMushaf() {
         <div style="flex-shrink:0; background:var(--dark-blue,#001f3f);
             padding:10px 12px; display:flex; align-items:center; gap:8px; position:relative;
             box-shadow:0 2px 12px rgba(0,0,0,0.4); justify-content:space-between; z-index:100;">
-
             <div id="btn-close-mushaf" class="mushaf-toolbar-btn">
                 <span class="icon-back-arrow"></span>
             </div>
-
             <div style="flex:1; min-width:0; text-align:right; overflow:hidden; padding:0 10px;">
                 <div id="mushaf-surah-title" style="color:var(--orange,#ff851b); font-weight:bold; font-size:clamp(12px, 4vw, 16px); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; direction:rtl;">
                     ${mushafMode === 'tahajjud' ? '🌙' : '📖'} جاري التحميل...
@@ -532,20 +521,16 @@ function renderMushaf() {
                     ص ${currentMushafPage} • ج ${getJuzFromPage(currentMushafPage)}
                 </div>
             </div>
-
             <div style="display:flex; flex-direction:column; align-items:center; gap:4px; flex-shrink:0;">
                 <div style="display:flex; align-items:center; gap:6px;">
                     <div id="btn-stop-audio" class="mushaf-toolbar-btn"><span class="icon-stop"></span></div>
-
                     <div id="btn-main-play" class="mushaf-toolbar-btn" style="background:rgba(46, 204, 113, 0.15);">
                         <span id="main-play-icon" class="icon-play"></span>
                     </div>
-
                     <div id="btn-autoplay" class="mushaf-toolbar-btn" 
                          style="background:${window.isContinuousPlay ? 'var(--orange,#ff851b)' : 'rgba(255,255,255,0.1)'};" title="تشغيل متواصل">
                          <span class="icon-loop" style="border-color:${window.isContinuousPlay ? '#001f3f' : '#fff'}"></span>
                     </div>
-
                     <div id="btn-view-mode" class="mushaf-toolbar-btn">${mushafViewMode === 'text' ? '🖼️' : '📝'}</div>
                     <div id="btn-show-nav" class="mushaf-toolbar-btn">🗂️</div>
                     <div id="bookmark-btn" class="mushaf-toolbar-btn">
@@ -584,6 +569,19 @@ function renderMushaf() {
 
     document.body.appendChild(overlay);
 
+    // ✅ delegation للضغط على أرقام الآيات — مصحف القراءة
+    document.getElementById('mushaf-page-content').addEventListener('click', e => {
+        const btn = e.target.closest('.ayah-num-btn');
+        if (!btn) return;
+        showAyahMenu(
+            parseInt(btn.dataset.surah),
+            btn.dataset.surahName,
+            parseInt(btn.dataset.ayah),
+            btn.dataset.text,
+            e
+        );
+    });
+
     // --- ربط الأحداث ---
     document.getElementById('btn-close-mushaf').addEventListener('click', closeMushaf);
     document.getElementById('btn-view-mode').addEventListener('click', toggleMushafViewMode);
@@ -600,7 +598,7 @@ function renderMushaf() {
     // ✅ ربط زرار Play الرئيسي
     document.getElementById('btn-main-play').addEventListener('click', function() {
         const icon = document.getElementById('main-play-icon');
-        
+
         if (currentAudio && !currentAudio.paused) {
             stopAudio();
             icon.className = 'icon-play';
@@ -608,25 +606,27 @@ function renderMushaf() {
         } else {
             let surahNum = 1;
             if (mushafMode === 'tahajjud') {
-                const tahajjudIndex = {
-                    1: 1, 2: 2, 14: 3, 20: 4, 28: 5, 33: 6, 39: 7, 45: 8, 48: 9, 53: 10,
-                    56: 11, 60: 12, 63: 13, 65: 14, 67: 15, 68: 16, 72: 17, 74: 18, 77: 19, 79: 20,
-                    82: 21, 84: 22, 87: 23, 89: 24, 91: 25, 93: 26, 95: 27, 97: 28, 100: 29, 102: 30,
-                    104: 31, 105: 32, 106: 33, 108: 34, 110: 35, 111: 36, 113: 37, 114: 38, 116: 39,
-                    118: 40, 120: 41, 122: 42, 123: 43, 125: 44, 126: 45, 127: 46, 128: 47, 129: 48,
-                    130: 49, 131: 50, 131: 51, 132: 52, 133: 53, 133: 54, 134: 55, 135: 56, 135: 57,
-                    137: 58, 137: 59, 138: 60, 139: 61, 139: 62, 140: 63, 140: 64, 141: 65, 141: 66,
-                    142: 67, 142: 68, 143: 69, 143: 70, 144: 71, 144: 72, 145: 73, 145: 74, 145: 75,
-                    146: 76, 146: 77, 147: 78, 147: 79, 147: 80, 148: 81, 148: 82, 148: 83, 148: 84,
-                    149: 85, 149: 86, 149: 87, 149: 88, 149: 89, 150: 90, 150: 91, 150: 92, 150: 93,
-                    150: 94, 150: 95, 151: 96, 151: 97, 151: 98, 151: 99, 151: 100, 151: 101, 151: 102,
-                    151: 103, 152: 104, 152: 105, 152: 106, 152: 107, 152: 108, 152: 109, 152: 110,
-                    152: 111, 152: 112, 152: 113, 152: 114
-                };
-                const pages = Object.keys(tahajjudIndex).map(Number).sort((a,b) => b-a);
-                for (let p of pages) {
-                    if (currentMushafPage >= p) { surahNum = tahajjudIndex[p]; break; }
+                const tahajjudPages = [
+                    [1,1],[2,2],[14,3],[20,4],[28,5],[33,6],[39,7],[45,8],[48,9],[53,10],
+                    [56,11],[60,12],[63,13],[65,14],[67,15],[68,16],[72,17],[74,18],[77,19],[79,20],
+                    [82,21],[84,22],[87,23],[89,24],[91,25],[93,26],[95,27],[97,28],[100,29],[102,30],
+                    [104,31],[105,32],[106,33],[108,34],[110,35],[111,36],[113,37],[114,38],[116,39],
+                    [118,40],[120,41],[122,42],[123,43],[125,44],[126,45],[127,46],[128,47],[129,48],
+                    [130,49],[131,50],[131,51],[132,52],[133,53],[133,54],[134,55],[135,56],[135,57],
+                    [137,58],[137,59],[138,60],[139,61],[139,62],[140,63],[140,64],[141,65],[141,66],
+                    [142,67],[142,68],[143,69],[143,70],[144,71],[144,72],[145,73],[145,74],[145,75],
+                    [146,76],[146,77],[147,78],[147,79],[147,80],[148,81],[148,82],[148,83],[148,84],
+                    [149,85],[149,86],[149,87],[149,88],[149,89],[150,90],[150,91],[150,92],[150,93],
+                    [150,94],[150,95],[151,96],[151,97],[151,98],[151,99],[151,100],[151,101],[151,102],
+                    [151,103],[152,104],[152,105],[152,106],[152,107],[152,108],[152,109],[152,110],
+                    [152,111],[152,112],[152,113],[152,114]
+                ];
+                let targetPage = tahajjudPages[0][0];
+                for (let [p] of tahajjudPages) {
+                    if (p <= currentMushafPage) targetPage = p;
+                    else break;
                 }
+                surahNum = tahajjudPages.find(([p]) => p === targetPage)?.[1] || 1;
             } else {
                 const firstAyahBtn = document.querySelector('.ayah-num-btn');
                 if (firstAyahBtn) surahNum = parseInt(firstAyahBtn.dataset.surah);
@@ -647,7 +647,7 @@ function renderMushaf() {
 
     document.getElementById('btn-autoplay').addEventListener('click', function() {
         window.isContinuousPlay = !window.isContinuousPlay;
-        
+
         if (window.isContinuousPlay) {
             if (!RECITERS_SURAH[currentReciter]) {
                 currentReciter = Object.keys(RECITERS_SURAH)[0];
@@ -658,7 +658,7 @@ function renderMushaf() {
 
         this.style.background = window.isContinuousPlay ? 'var(--orange,#ff851b)' : 'rgba(255,255,255,0.1)';
         this.querySelector('.icon-loop').style.borderColor = window.isContinuousPlay ? '#001f3f' : '#fff';
-        
+
         if (document.getElementById('reciter-panel')) showReciterPicker();
     });
 
@@ -682,6 +682,7 @@ function renderMushaf() {
         }, { passive: true });
     }, 250);
 }
+
 // ============================================================
 // ✅ دوال الزوم وتغيير العرض
 // ============================================================
@@ -991,46 +992,47 @@ async function loadPageText(pageNum, retryCount = 0) {
 // ✅ دالة مساعدة لتحديث اسم السورة في مصحف التهجد بناءً على الفهرس
 function updateTahajjudMeta(page) {
     const titleEl = document.getElementById('mushaf-surah-title');
-    const metaEl = document.getElementById('mushaf-page-meta');
-    
-    // الفهرس الموضوعي المستخرج من الصورة (الصفحة : اسم السورة)
-   const tahajjudIndex = {
-  1: "الفاتحة", 2: "البقرة", 14: "آل عمران", 20: "النساء", 28: "المائدة",
-  33: "الأنعام", 39: "الأعراف", 45: "الأنفال", 48: "التوبة", 53: "يونس",
-  56: "هود", 60: "يوسف", 63: "الرعد", 65: "إبراهيم", 67: "الحجر",
-  68: "النحل", 72: "الإسراء", 74: "الكهف", 77: "مريم", 79: "طه",
-  82: "الأنبياء", 84: "الحج", 87: "المؤمنون", 89: "النور", 91: "الفرقان",
-  93: "الشعراء", 95: "النمل", 97: "القصص", 100: "العنكبوت", 102: "الروم",
-  104: "لقمان", 105: "السجدة", 106: "الأحزاب", 108: "سبأ", 110: "فاطر",
-  111: "يس", 113: "الصافات", 114: "ص", 116: "الزمر", 118: "غافر",
-  120: "فصلت", 122: "الشورى", 123: "الزخرف", 125: "الدخان", 126: "الجاثية",
-  127: "الأحقاف", 128: "محمد", 129: "الفتح", 130: "الحجرات", 131: "ق",
-  131: "الذاريات", 132: "الطور", 133: "النجم", 133: "القمر", 134: "الرحمن",
-  135: "الواقعة", 135: "الحديد", 137: "المجادلة", 137: "الحشر", 138: "الممتحنة",
-  139: "الصف", 139: "الجمعة", 140: "المنافقون", 140: "التغابن", 141: "الطلاق",
-  141: "التحريم", 142: "الملك", 142: "القلم", 143: "الحاقة", 143: "المعارج",
-  144: "نوح", 144: "الجن", 145: "المزمل", 145: "المدثر", 145: "القيامة",
-  146: "الإنسان", 146: "المرسلات", 147: "النبأ", 147: "النازعات", 147: "عبس",
-  148: "التكوير", 148: "الانفطار", 148: "المطففين", 148: "الانشقاق", 149: "البروج",
-  149: "الطارق", 149: "الأعلى", 149: "الغاشية", 149: "الفجر", 150: "البلد",
-  150: "الشمس", 150: "الليل", 150: "الضحى", 150: "الشرح", 150: "التين",
-  151: "العلق", 151: "القدر", 151: "البينة", 151: "الزلزلة", 151: "العاديات",
-  151: "القارعة", 151: "التكاثر", 151: "العصر", 152: "الهمزة", 152: "الفيل",
-  152: "قريش", 152: "الماعون", 152: "الكوثر", 152: "الكافرون", 152: "النصر",
-  152: "المسد", 152: "الإخلاص", 152: "الفلق", 152: "الناس"
-};
+    const metaEl  = document.getElementById('mushaf-page-meta');
+
+    const tahajjudPages = [
+        [1,"الفاتحة"],[2,"البقرة"],[14,"آل عمران"],[20,"النساء"],[28,"المائدة"],
+        [33,"الأنعام"],[39,"الأعراف"],[45,"الأنفال"],[48,"التوبة"],[53,"يونس"],
+        [56,"هود"],[60,"يوسف"],[63,"الرعد"],[65,"إبراهيم"],[67,"الحجر"],
+        [68,"النحل"],[72,"الإسراء"],[74,"الكهف"],[77,"مريم"],[79,"طه"],
+        [82,"الأنبياء"],[84,"الحج"],[87,"المؤمنون"],[89,"النور"],[91,"الفرقان"],
+        [93,"الشعراء"],[95,"النمل"],[97,"القصص"],[100,"العنكبوت"],[102,"الروم"],
+        [104,"لقمان"],[105,"السجدة"],[106,"الأحزاب"],[108,"سبأ"],[110,"فاطر"],
+        [111,"يس"],[113,"الصافات"],[114,"ص"],[116,"الزمر"],[118,"غافر"],
+        [120,"فصلت"],[122,"الشورى"],[123,"الزخرف"],[125,"الدخان"],[126,"الجاثية"],
+        [127,"الأحقاف"],[128,"محمد"],[129,"الفتح"],[130,"الحجرات"],[131,"ق"],
+        [131,"الذاريات"],[132,"الطور"],[133,"النجم"],[133,"القمر"],[134,"الرحمن"],
+        [135,"الواقعة"],[135,"الحديد"],[137,"المجادلة"],[137,"الحشر"],[138,"الممتحنة"],
+        [139,"الصف"],[139,"الجمعة"],[140,"المنافقون"],[140,"التغابن"],[141,"الطلاق"],
+        [141,"التحريم"],[142,"الملك"],[142,"القلم"],[143,"الحاقة"],[143,"المعارج"],
+        [144,"نوح"],[144,"الجن"],[145,"المزمل"],[145,"المدثر"],[145,"القيامة"],
+        [146,"الإنسان"],[146,"المرسلات"],[147,"النبأ"],[147,"النازعات"],[147,"عبس"],
+        [148,"التكوير"],[148,"الانفطار"],[148,"المطففين"],[148,"الانشقاق"],[149,"البروج"],
+        [149,"الطارق"],[149,"الأعلى"],[149,"الغاشية"],[149,"الفجر"],[150,"البلد"],
+        [150,"الشمس"],[150,"الليل"],[150,"الضحى"],[150,"الشرح"],[150,"التين"],
+        [151,"العلق"],[151,"القدر"],[151,"البينة"],[151,"الزلزلة"],[151,"العاديات"],
+        [151,"القارعة"],[151,"التكاثر"],[151,"العصر"],[152,"الهمزة"],[152,"الفيل"],
+        [152,"قريش"],[152,"الماعون"],[152,"الكوثر"],[152,"الكافرون"],[152,"النصر"],
+        [152,"المسد"],[152,"الإخلاص"],[152,"الفلق"],[152,"الناس"]
+    ];
+
+    // أول سورة في الصفحة الحالية أو اللي قبلها
     let currentSurah = "مصحف التهجد";
-    const pages = Object.keys(tahajjudIndex).map(Number).sort((a,b) => b-a);
-    for (let p of pages) {
-        if (page >= p) {
-            currentSurah = tahajjudIndex[p];
-            break;
-        }
+    let targetPage = tahajjudPages[0][0];
+    for (let [p] of tahajjudPages) {
+        if (p <= page) targetPage = p;
+        else break;
     }
+    currentSurah = tahajjudPages.find(([p]) => p === targetPage)?.[1] || "مصحف التهجد";
 
     if (titleEl) titleEl.textContent = `🌙 سورة ${currentSurah}`;
-    if (metaEl) metaEl.textContent = `صفحة ${page} (التهجد الموضوعي)`;
+    if (metaEl)  metaEl.textContent  = `صفحة ${page} (التهجد الموضوعي)`;
 }
+
 // ============================================================
 // ✅ قائمة خيارات الآية (تظهر عند الضغط على رقم الآية)
 // ============================================================
