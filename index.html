@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover, target-densitydpi=device-dpi">
     <link href="https://fonts.googleapis.com/css2?family=Amiri+Quran&family=Reem+Kufi:wght@500&display=swap" rel="stylesheet">
     <title>Mo's Quran 📖</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -25,6 +25,23 @@
         .ayah-num-btn { cursor: pointer; touch-action: manipulation; user-select: none; }
         .copy-toast { position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%) translateY(100px); background: rgba(0, 31, 63, 0.95); color: white; padding: 12px 25px; border-radius: 50px; border: 2px solid var(--orange); z-index: 300000; font-weight: bold; transition: all 0.4s cubic-bezier(0.18, 0.89, 0.32, 1.28); opacity: 0; pointer-events: none; }
         .copy-toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+        #canva-tahajjud-frame {
+    /* تحسين حدة الصور ومنع التغبيش */
+    image-rendering: -webkit-optimize-contrast; 
+    image-rendering: crisp-edges;
+    
+    /* تفعيل تسريع الهاردوير للموبايل */
+    transform: translateZ(0);
+    -webkit-transform: translateZ(0);
+    
+    /* منع الـ WebView من تقليل الجودة عند الزوم */
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+    
+    /* التأكد إن الحاوية واخدة كامل المساحة بدون ضغط */
+    width: 100% !important;
+    height: 100% !important;
+}
     </style>
 </head>
 <body>
@@ -718,18 +735,21 @@ async function loadPageText(pageNum, retryCount = 0) {
     }
 
     // ============================================================
-    // ✅ الجزء الخاص بمصحف التهجد (Canva Embed)
+    // ✅ الجزء الخاص بمصحف التهجد (Canva Embed) - تحسين الجودة برمجياً
     // ============================================================
     if (mushafMode === 'tahajjud') {
         const canvaBaseUrl = "https://www.canva.com/design/DAHGkdoy70Q/7aEXDyRBuOLdWH31nX5Pmw/view?embed";
-        // إضافة رقم الصفحة كـ Hash لضمان فتح الصفحة المطلوبة
         const pageUrl = `${canvaBaseUrl}#${pageNum}`;
 
+        // ملاحظة: تم استخدام CSS لزيادة الحدة (Sharpness) وتحسين الرندر في الموبايل
         container.innerHTML = `
-            <div style="position: relative; width: 100%; height: 100%; overflow: hidden; border-radius: 12px; background: #1a1a1a; box-shadow: inset 0 0 20px rgba(0,0,0,0.5);">
+            <div style="position: relative; width: 100%; height: 100%; overflow: hidden; border-radius: 12px; background: #1a1a1a; box-shadow: inset 0 0 20px rgba(0,0,0,0.5); -webkit-overflow-scrolling: touch;">
                 <iframe id="canva-tahajjud-frame"
                         loading="lazy" 
-                        style="position: absolute; width: 100%; height: 100%; top: 0; left: 0; border: none; padding: 0; margin: 0;"
+                        style="position: absolute; width: 100%; height: 100%; top: 0; left: 0; border: none; padding: 0; margin: 0;
+                               image-rendering: -webkit-optimize-contrast; image-rendering: crisp-edges;
+                               -webkit-transform: translateZ(0); transform: translateZ(0);
+                               backface-visibility: hidden; -webkit-backface-visibility: hidden;"
                         src="${pageUrl}" 
                         allowfullscreen="allowfullscreen" 
                         allow="fullscreen">
@@ -776,7 +796,7 @@ async function loadPageText(pageNum, retryCount = 0) {
                 <div style="text-align:center;width:100%;height:100%;overflow:auto;">
                     <img id="mushaf-image-view"
                         src="https://quran.ksu.edu.sa/png_big/${pageNum}.png"
-                        style="max-width:none;width:${mushafZoom * 4}%;transition:width 0.3s;margin:auto;display:block;">
+                        style="max-width:none;width:${mushafZoom * 4}%;transition:width 0.3s;margin:auto;display:block;image-rendering: -webkit-optimize-contrast;">
                 </div>`;
             return;
         }
@@ -840,7 +860,6 @@ async function loadPageText(pageNum, retryCount = 0) {
         }
         container.innerHTML = html;
 
-        // إعادة تفعيل التظليل لو فيه سكرول معلق
         if (typeof pendingHighlight !== 'undefined' && pendingHighlight) {
             const { surah, ayah } = pendingHighlight;
             pendingHighlight = null;
@@ -859,7 +878,6 @@ async function loadPageText(pageNum, retryCount = 0) {
             </div>`;
     }
 }
-
 // ✅ دالة مساعدة لتحديث اسم السورة في مصحف التهجد بناءً على الفهرس
 function updateTahajjudMeta(page) {
     const titleEl = document.getElementById('mushaf-surah-title');
