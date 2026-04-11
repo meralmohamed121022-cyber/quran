@@ -2263,8 +2263,8 @@ const JUZ_NAMES = [
     'حم','قال فما خطبكم','قد سمع الله','تبارك الذي','عم يتساءلون'
 ];
 const RECITERS_SURAH = {
-    'https://archive.org/download/mustafa-khamis-full-quran/': '🎙️ مصطفى خميس',
-    'https://server11.mp3quran.net/hatem/': '🎙️ حاتم فريد الواعر',
+'https://media.way2quran.com/mustafa-khamis/hafs-an-asim/': '🎙️ مصطفى خميس',
+'https://server11.mp3quran.net/hatem/': '🎙️ حاتم فريد الواعر',
     'https://server12.mp3quran.net/s_said/': '🎙️ سيد سعيد',
     'https://server12.mp3quran.net/ahmed_hadr/': '🎙️ أحمد ديبان (حدر)'
 };
@@ -2406,13 +2406,12 @@ async function fetchQuranBookmarks() {
 // ============================================================
 // ✅ فتح المصحف - يروح لآخر بوكمارك
 // ============================================================
-async function openMushaf(mode) {
+async function openMushaf(mode, targetPage = null) {
     mushafMode = mode;
     const container = document.getElementById('mushaf-section');
     if(container) container.style.opacity = '0.5';
 
-    // جلب كل البيانات المطلوبة في وقت واحد
-    // ملاحظة: ضفنا جلب الإعدادات (آخر صفحة وآخر شيخ)
+    // جلب البيانات
     const [bookmarks, surahs, settingsRes] = await Promise.all([
         fetchQuranBookmarks(), 
         fetchSurahList(),
@@ -2421,16 +2420,17 @@ async function openMushaf(mode) {
 
     const settings = settingsRes.data;
 
-    if (settings) {
-        // 1. استرجاع آخر شيخ
-        if (settings.last_reciter) currentReciter = settings.last_reciter;
-        
-        // 2. استرجاع آخر صفحة حسب الوضع (قراءة أو تهجد)
+    if (targetPage) {
+        // ✅ لو جاي من فيفوريت، استخدم الصفحة المحددة
+        currentMushafPage = parseInt(targetPage);
+    } else if (settings) {
+        // لو فتح عادي، استخدم آخر صفحة من سوبابيز
         currentMushafPage = (mode === 'reading') ? settings.last_page_reading : settings.last_page_tahajjud;
     } else {
-        // لو مفيش إعدادات في سوبابيز، نعتمد على الـ LocalStorage كخيار احتياطي
         currentMushafPage = parseInt(localStorage.getItem(`mushaf_last_page_${mode}`) || 1);
     }
+
+    if (settings && settings.last_reciter) currentReciter = settings.last_reciter;
 
     if(container) container.style.opacity = '1';
     renderMushaf();
@@ -4212,18 +4212,36 @@ function renderMushafSelector() {
         renderBookmarksPreview();
     }
 }
-
-// ✅ openBookmarkItem - آمن على Android
 window.openBookmarkItem = function(page, mode, surahNum, ayahNum) {
-    currentMushafPage = parseInt(page) || 1;
-    openMushaf(mode || 'reading');
+    // 1. تحويل البيانات لأرقام لضمان الدقة
+    const p = parseInt(page) || 1;
+    const m = mode || 'reading';
+    
+    // 2. تحديث المتغيرات العامة فوراً
+    currentMushafPage = p;
+    mushafMode = m;
+    
+    // 3. تحديث الكاش المحلي
+    localStorage.setItem(`mushaf_last_page_${m}`, p);
+    
+    // 4. السحر هنا: لو المصحف مقفول، هنبعت الصفحة كبارامتر تاني لـ openMushaf
+    if (document.getElementById('mushaf-overlay')) {
+        renderMushaf(); 
+    } else {
+        // بنبعت p عشان openMushaf تعرف إننا داخلين بصفحة محددة مش بآخر صفحة مسجلة
+        openMushaf(m, p); 
+    }
+
+    // 5. التوجه للآية لو كانت علامة آية
     if (ayahNum > 0) {
-        setTimeout(function() {
-            goToSearchResult(page, surahNum, ayahNum);
-        }, 300);
+        pendingHighlight = { surah: parseInt(surahNum), ayah: parseInt(ayahNum) };
+        setTimeout(() => {
+            if (typeof scrollAndHighlightAyah === 'function') {
+                scrollAndHighlightAyah(surahNum, ayahNum);
+            }
+        }, 1000); // زودنا التأخير شوية عشان نضمن تحميل الـ API في الموبايل
     }
 };
-
 async function renderBookmarksPreview() {
     const container = document.getElementById('mushaf-bookmarks-preview');
     if (!container) return;
@@ -4242,7 +4260,6 @@ async function renderBookmarksPreview() {
             return;
         }
 
-        // ✅ الـ wrapper بدون onclick
         const wrapper = document.createElement('div');
         wrapper.style.cssText = `background:white;border-radius:15px;padding:15px;
             border:2px solid var(--orange,#ff851b);box-shadow:4px 4px 0 var(--orange,#ff851b);`;
@@ -4252,13 +4269,12 @@ async function renderBookmarksPreview() {
                 🔖 آخر علاماتك المرجعية
             </div>`;
 
-        // ✅ كل bookmark كـ element منفصل مع addEventListener
-        quranBookmarks.slice(0, 6).forEach((b, i) => {
-            const p    = parseInt(b.page)         || 1;
-            const s    = parseInt(b.surah_number) || 1;
-            const a    = parseInt(b.ayah_number)  || 0;
+        quranBookmarks.slice(0, 6).forEach((b) => {
+            const p = parseInt(b.page) || 1;
+            const s = parseInt(b.surah_number) || 1;
+            const a = parseInt(b.ayah_number) || 0;
             const sName = b.surah_name || 'سورة';
-            const mode  = b.mode || 'reading';
+            const mode = b.mode || 'reading';
 
             const item = document.createElement('div');
             item.style.cssText = `
@@ -4286,8 +4302,12 @@ async function renderBookmarksPreview() {
                 </div>
             `;
 
-            // ✅ addEventListener بدل onclick في الـ HTML
-            item.addEventListener('click', () => openBookmarkItem(p, mode, s, a));
+            // ✅ التعديل الجوهري هنا: نمرر الصفحة p لضمان عدم الكتابة فوقها من سوبابيز
+            item.addEventListener('click', () => {
+                if (typeof openBookmarkItem === 'function') {
+                    openBookmarkItem(p, mode, s, a);
+                }
+            });
 
             wrapper.appendChild(item);
         });
