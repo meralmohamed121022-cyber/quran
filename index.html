@@ -11,158 +11,20 @@
     <style>
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
         :root { --dark-blue: #001f3f; --orange: #ff851b; --white: #ffffff; --paper: #fdfcf0; --book-spine: #00152b; --glass: rgba(255, 255, 255, 0.1); }
-        
-        html {
-            overflow-x: clip; 
-            height: 100%;
-            width: 100%;
-        }
-
-        body {
-            background-color: var(--dark-blue);
-            font-family: 'Segoe UI', Tahoma, sans-serif;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            color: var(--white);
-            direction: ltr;
-            min-height: 100dvh;
-        }
-
-        /* App Layout */
+        html { overflow-x: clip; height: 100%; width: 100%; }
+        body { background-color: var(--dark-blue); font-family: 'Segoe UI', Tahoma, sans-serif; display: flex; flex-direction: column; align-items: center; color: var(--white); direction: ltr; min-height: 100dvh; margin: 0; }
         #journal-app { display: flex; width: 100%; flex-direction: column; align-items: center; }
-
-        .top-bar {
-            width: 92%;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-top: 10px; 
-        }
+        .top-bar { width: 92%; display: flex; justify-content: space-between; align-items: center; margin-top: 10px; }
         .avatar-word { font-weight: bold; font-size: 24px; text-transform: uppercase; display: flex; align-items: center; gap: 4px; text-shadow: 2px 2px 4px rgba(0,0,0,0.3); padding: 5px; }
         .animated-letter { display: inline-block; animation: dropBounce 2s infinite ease-in; position: relative; }
         @keyframes dropBounce { 0% { transform: translateY(-60px); opacity: 0; } 30% { transform: translateY(0); opacity: 1; } 50% { transform: translateY(-25px); } 70% { transform: translateY(0); } 85% { transform: translateY(-10px); } 100% { transform: translateY(0); } }
-
-        .search-box { width: 90%; max-width: 600px; padding: 12px 20px; border-radius: 50px; border: 2px solid var(--orange); background: var(--glass); color: white; margin: 15px 0; outline: none; }
-       
-        .nav-tabs {
-            margin-bottom: 20px; display: flex; gap: 8px; overflow-x: auto; overflow-y: hidden;
-            padding: 5px 8px; width: 100%; justify-content: flex-start; scroll-snap-type: x mandatory;
-            -webkit-overflow-scrolling: touch; scrollbar-width: none; 
-        }
-        .nav-tabs::-webkit-scrollbar { display: none; }
-
-        .tab-btn {
-            background: transparent; border: 2px solid var(--orange); color: white; padding: 8px 16px;
-            border-radius: 50px; cursor: pointer; font-size: 13px; white-space: nowrap; flex-shrink: 0;
-            scroll-snap-align: start; 
-        }
-        .tab-btn.active { background: var(--orange); box-shadow: 0 0 10px var(--orange); }
-        
-        .auth-btn { background: var(--dark-blue); color: white; border: none; width: 100%; padding: 14px; border-radius: 12px; cursor: pointer; font-weight: bold; font-size: 16px; transition: 0.3s; }
-        .auth-btn:disabled { opacity: 0.6; cursor: not-allowed; background: #555; }
-
-        /* Notes Section */
-        #notes-section { width: 100%; display: none; flex-direction: column; align-items: center; }
-        .glass-input { background: var(--white); padding: 20px; border-radius: 20px; width: 90%; max-width: 600px; box-shadow: 10px 10px 0px var(--orange); border: 3px solid var(--book-spine); color: #333; margin-bottom: 30px; }
-        .glass-input input, .glass-input textarea { width: 100%; border: 1px solid #eee; border-radius: 10px; padding: 12px; margin-bottom: 10px; font-size: 16px; }
-        .datetime-row { display: flex; gap: 8px; align-items: center; margin-bottom: 10px; }
-        .datetime-row div { flex: 1; }
-        .file-upload-art { border: 2px dashed var(--orange); background: #fffbf5; padding: 15px; border-radius: 10px; text-align: center; cursor: pointer; margin-bottom: 10px; font-size: 14px; color: #666; }
-
-        .day-header { background: var(--orange); color: white; padding: 8px 25px; border-radius: 0 30px 30px 0; margin: 15px 0; font-weight: bold; align-self: flex-end; margin-right: 5%; }
-        .journal-row { display: flex; gap: 20px; padding: 15px 20px 35px 20px; overflow-x: auto; width: 100%; scroll-snap-type: x mandatory; direction: rtl; }
-        .note-card { min-width: 290px; max-width: 290px; background: var(--paper); color: #333; padding: 20px; border-radius: 5px 20px 20px 5px; box-shadow: 5px 5px 15px rgba(0,0,0,0.3); border-right: 12px solid var(--book-spine); scroll-snap-align: center; display: flex; flex-direction: column; position: relative; direction: ltr; transition: background 0.3s ease; }
-        .card-actions { position: absolute; top: 8px; left: 8px; display: flex; gap: 8px; z-index: 10; }
-        .action-btn { border: none; background: rgba(255,255,255,0.8); padding: 5px; border-radius: 5px; cursor: pointer; font-size: 16px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; }
-        .stop-alarm-small { background: #ff4444 !important; color: white !important; display: none; animation: pulse-red 1s infinite; }
-        .stop-alarm-small.stopped { background: #2ecc71 !important; animation: none; transform: scale(0.9); }
-        @keyframes pulse-red { 0% { transform: scale(1); } 50% { transform: scale(1.1); } 100% { transform: scale(1); } }
-        .media-gallery { display: flex; gap: 10px; overflow-x: auto; margin: 12px 0; scroll-snap-type: x mandatory; padding-bottom: 5px; }
-        .gallery-item { flex: 0 0 85%; height: 180px; border-radius: 12px; object-fit: cover; scroll-snap-align: start; background: #eee; border: 1px solid #ddd; }
-
-        /* Azkar Section */
-        #azkar-section { width: 100%; display: none; flex-direction: column; align-items: center; padding-bottom: 120px; }
         .category-box-container { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; width: 92%; margin-top: 20px; }
         .category-box { background: var(--white); border-radius: 20px; padding: 25px 15px; text-align: center; box-shadow: 6px 6px 0px var(--orange); border: 3px solid var(--book-spine); cursor: pointer; transition: 0.3s; color: var(--dark-blue); font-weight: bold; font-size: 20px; }
         .category-box:active { transform: scale(0.95); }
-        .category-box.morning { border-color: #f1c40f; }
-        .category-box.evening { border-color: #2c3e50; background: #ecf0f1; }
-
-        .azkar-card { background: var(--white); border-radius: 15px; padding: 15px; text-align: right; box-shadow: 4px 4px 0px var(--orange); border: 2px solid var(--book-spine); color: #333; display: flex; align-items: center; justify-content: space-between; transition: 0.2s; position: relative; cursor: pointer; user-select: none; -webkit-user-select: none; touch-action: pan-y; margin-bottom: 0 !important; z-index: 2; transition: transform 0.3s ease; }
-        .azkar-card.selected { border: 3px solid var(--orange); background: #fff9f0; transform: scale(1.02); }
-        .azkar-card.swiping { transition: none; }
-        
-        .azkar-text { font-size: 18px; font-weight: bold; color: var(--dark-blue); flex: 1; direction: rtl; padding-right: 10px; }
-        .azkar-counter { font-size: 24px; font-weight: 900; color: var(--orange); font-family: monospace; min-width: 60px; text-align: left; }
-        .azkar-reset { width: 50px; height: 50px; background: #fdfcf0; border: 2px solid var(--book-spine); border-radius: 50%; cursor: pointer; position: relative; box-shadow: 0 6px 0 var(--book-spine), 0 8px 15px rgba(0,0,0,0.3); transition: 0.1s; display: flex; align-items: center; justify-content: center; margin-right: 10px; outline: none; }
-        .azkar-reset:active { transform: translateY(4px); box-shadow: 0 2px 0 var(--book-spine); }
-        .azkar-reset::after { content: '↺'; font-size: 28px; font-weight: bold; color: var(--dark-blue); }
-        .azkar-reset::before { content: 'RESET'; position: absolute; top: -15px; font-size: 9px; font-weight: bold; color: var(--orange); letter-spacing: 1px; text-shadow: 1px 1px 0 #fff; }
-        .add-zikr-container { background: var(--glass); border: 2px dashed var(--orange); border-radius: 20px; padding: 15px; width: 92%; margin-top: 15px; display: flex; gap: 10px; }
-        
-        .zikr-wrapper { position: relative; overflow: hidden; border-radius: 15px; margin-bottom: 12px; background: #eee; display: flex; align-items: stretch; }
-
-        /* Fingerprint Button */
-        #fingerprint-container { position: fixed; bottom: 40px; left: 50%; transform: translateX(-50%); width: 140px; height: 140px; display: none; justify-content: center; align-items: center; z-index: 1000; }
-        .fingerprint-btn { width: 95px; height: 95px; background: radial-gradient(circle, var(--dark-blue) 0%, #002d5a 100%); border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1); position: relative; z-index: 2; border: 4px solid var(--orange); box-shadow: 0 10px 30px rgba(0,0,0,0.5), inset 0 0 15px rgba(255,133,27,0.2); }
-        .fingerprint-btn:active { transform: scale(0.88); background: var(--orange); box-shadow: 0 0 25px var(--orange); }
-        .fingerprint-btn:active svg { fill: var(--dark-blue); }
-        .fingerprint-btn svg { width: 55px; height: 55px; fill: #ffffff; transition: 0.1s; filter: drop-shadow(0 0 8px rgba(255,255,255,0.4)); }
-        .pulse-ring { position: absolute; width: 90px; height: 90px; border: 3px solid var(--orange); border-radius: 50%; animation: pulse-ring-anim 2s infinite ease-out; z-index: 1; pointer-events: none; opacity: 0; }
-        #fingerprint-container::after { content: ""; position: absolute; width: 90px; height: 90px; border: 2px solid var(--orange); border-radius: 50%; animation: pulse-ring-anim 2s infinite ease-out 1s; z-index: 1; pointer-events: none; }
-        @keyframes pulse-ring-anim { 0% { transform: scale(1); opacity: 0.6; } 100% { transform: scale(1.8); opacity: 0; } }
-
-        /* Modals & Others */
-        .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.92); display: none; z-index: 99999; overflow-y: auto; padding: 40px 0; -webkit-overflow-scrolling: touch; }
-        .modal-content { background: white; padding: 25px; border-radius: 20px; width: 90%; max-width: 420px; margin: 0 auto; color: #333; box-shadow: 0 15px 50px rgba(0,0,0,0.8); position: relative; text-align: center; }
-        .alert-btns { display: flex; gap: 10px; margin-top: 20px; }
-        .alert-btn { flex: 1; padding: 14px; border: none; border-radius: 12px; cursor: pointer; font-weight: bold; font-size: 16px; }
-        
-        #lightbox { display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 9999999; margin: 0; padding: 0; background: #001f3f; box-sizing: border-box; overflow: hidden; }
-        #lightbox .close-btn { position: absolute; top: 20px; right: 30px; color: white; font-size: 40px; font-weight: bold; cursor: pointer; z-index: 100000001; transition: 0.3s ease; user-select: none; line-height: 1; text-shadow: 0 0 10px rgba(0,0,0,0.5); }
-        #lightbox-content { flex: 1; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-        #lightbox iframe, #lightbox img, #lightbox video { border: none; display: block; }
-
-        @media (max-width: 768px) { .mushaf-zoom-slider { display: block !important; width: 80px !important; } .mushaf-toolbar-icon { width: 28px !important; height: 28px !important; } }
-        .zoom-container-mobile { display: flex; flex-direction: column; align-items: center; background: rgba(255, 255, 255, 0.1); padding: 5px; border-radius: 10px; margin-right: 5px; }
-        .countdown-timer { font-size: 11px; font-weight: bold; color: #d35400; margin-top: 4px; background: #fff0e0; padding: 2px 8px; border-radius: 4px; display: inline-block; border: 1px solid #ffcc99; }
-        .spinner { display: inline-block; width: 18px; height: 18px; border: 3px solid rgba(255,255,255,.3); border-radius: 50%; border-top-color: var(--orange); animation: spin 1s linear infinite; }
-
-        .custom-modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 31, 63, 0.85); display: none; align-items: center; justify-content: center; z-index: 100000; backdrop-filter: blur(5px); }
-        .custom-modal-art { background: white; padding: 30px; border-radius: 25px; width: 85%; max-width: 350px; text-align: center; border-bottom: 8px solid var(--orange); box-shadow: 0 20px 40px rgba(0,0,0,0.4); transform: translateY(20px); transition: 0.3s; }
-        .modal-icon-art { font-size: 50px; margin-bottom: 15px; display: inline-block; animation: shake 0.5s infinite alternate; }
-        
-        .art-modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 31, 63, 0.9); display: none; align-items: center; justify-content: center; z-index: 200000; backdrop-filter: blur(8px); }
-        .art-modal-box { background: white; padding: 25px; border-radius: 25px; width: 90%; max-width: 360px; text-align: center; border-bottom: 8px solid var(--orange); box-shadow: 0 15px 35px rgba(0,0,0,0.5); animation: modalPop 0.3s cubic-bezier(0.17, 0.89, 0.32, 1.49); }
-        .art-modal-input { width: 100%; padding: 12px; margin: 15px 0; border: 2px solid #eee; border-radius: 12px; font-size: 16px; outline: none; text-align: center; color: var(--dark-blue); }
-        
-        .color-picker-container { display: flex; gap: 8px; margin: 10px 0; justify-content: center; }
-        .color-dot { width: 24px; height: 24px; border-radius: 50%; cursor: pointer; border: 2px solid rgba(0,0,0,0.1); transition: 0.2s; }
-        .color-dot.selected { border-color: var(--orange); box-shadow: 0 0 5px var(--orange); }
-
-        body.is-android { padding-top: env(safe-area-inset-top, 0px); }
-        @supports not (padding: env(safe-area-inset-top)) { body.is-android { padding-top: 24px; } }
-        body.is-android #fingerprint-container { bottom: max(env(safe-area-inset-bottom, 0px), 40px); }
-        .auth-btn:active { transform: scale(0.95); -webkit-transform: scale(0.95); filter: brightness(0.9); -webkit-filter: brightness(0.9); }
-
-        /* Focus Card Updates */
-        .azkar-card.focus-card { display: flex; flex-direction: column; justify-content: space-between; align-items: center; height: 100dvh; width: 100%; padding: 30px 15px; box-sizing: border-box; background: #fdfcf0; border: 4px solid var(--book-spine); border-radius: 15px; position: relative; }
-        .azkar-text-container { flex-grow: 1; display: flex; align-items: center; justify-content: center; overflow-y: auto; padding: 10px; max-height: calc(100dvh - 180px); width: 100%; }
-        .azkar-text-focus { font-family: 'Amiri Quran', serif; font-size: clamp(22px, 6vw, 38px); line-height: 1.6; text-align: center; color: var(--dark-blue); margin: 0; padding: 0 10px; word-break: break-word; direction: rtl; }
-        .target-btn-corner { position: absolute; bottom: 20px; right: 20px; background: var(--orange); color: white; padding: 8px 15px; border-radius: 12px; font-size: 14px; font-weight: bold; box-shadow: 0 4px 10px rgba(0,0,0,0.2); z-index: 2; }
-        .reset-btn-corner { position: absolute; bottom: 20px; left: 20px; width: 50px; height: 50px; border-radius: 50%; z-index: 2; }
-
-        @media screen { .nav-tabs.app-hidden { display: none !important; } }
-        #mushaf-title-label { display: none; }
-        #mushaf-page-meta { flex: 1; overflow: hidden; padding: 4px 8px; }
-        
-        .copy-toast { position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%) translateY(100px); background: rgba(0, 31, 63, 0.95); color: white; padding: 12px 25px; border-radius: 50px; border: 2px solid var(--orange); box-shadow: 0 5px 20px rgba(0,0,0,0.3); z-index: 300000; font-weight: bold; font-size: 14px; display: flex; align-items: center; gap: 8px; transition: all 0.4s cubic-bezier(0.18, 0.89, 0.32, 1.28); opacity: 0; pointer-events: none; }
+        #mushaf-section { display: flex; flex-direction: column; align-items: center; padding-bottom: 30px; width: 100%; }
+        .ayah-num-btn { cursor: pointer; touch-action: manipulation; user-select: none; }
+        .copy-toast { position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%) translateY(100px); background: rgba(0, 31, 63, 0.95); color: white; padding: 12px 25px; border-radius: 50px; border: 2px solid var(--orange); z-index: 300000; font-weight: bold; transition: all 0.4s cubic-bezier(0.18, 0.89, 0.32, 1.28); opacity: 0; pointer-events: none; }
         .copy-toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
-
-        #notes-section, #azkar-section, #files-section { will-change: transform, opacity; contain: content; }
-        #mushaf-section { will-change: auto; display: flex; flex-direction: column; align-items: center; padding-bottom: 30px; width: 100%; }
-        .ayah-num-btn { cursor: pointer; touch-action: manipulation; user-select: none; -webkit-tap-highlight-color: rgba(255, 133, 27, 0.3); }
     </style>
 </head>
 <body>
@@ -170,254 +32,123 @@
 <div id="journal-app">
     <div class="top-bar">
         <div class="user-profile" style="display: flex; align-items: center; gap: 15px;">
-            <div onclick="handleBack()" style="cursor:pointer; font-size:24px; color:#e74c3c; font-weight: bold; -webkit-tap-highlight-color: transparent; user-select: none;">
-                ✕
-            </div>
-            <div class="avatar-word" id="user-avatar-text">MO</div>
+            <div onclick="handleBack()" style="cursor:pointer; font-size:24px; color:#e74c3c; font-weight: bold;">✕</div>
+            <div class="avatar-word" id="user-avatar-text">...</div>
         </div>
     </div>
-
     <div id="main-view-container" style="width:100%; display:flex; flex-direction:column; align-items:center;">
-        
         <div id="mushaf-section">
             <div id="mushaf-selector" class="category-box-container" style="width: 92%; margin-top: 20px;"></div>
             <div id="mushaf-bookmarks-preview" style="width: 92%; margin-top: 20px;"></div>
         </div>
-
-    </div>
-</div>
-
-<div id="lightbox">
-    <div id="lightbox-content"></div>
-</div>
-
-<div id="fingerprint-container">
-    <div class="pulse-ring"></div>
-    <div class="fingerprint-btn" id="fingerprint-btn">
-        <svg xmlns="http://www.w3.org/2000/svg" width="55" height="55" fill="currentColor" class="bi bi-fingerprint" viewBox="0 0 16 16">
-            <path d="M8.06 6.5a.5.5 0 0 1 .5.5v.776a11.5 11.5 0 0 1-.552 3.519l-1.331 4.14a.5.5 0 0 1-.952-.305l1.33-4.141a10.5 10.5 0 0 0 .504-3.213V7a.5.5 0 0 1 .5-.5Z"/>
-            <path d="M6.06 7a2 2 0 1 1 4 0 .5.5 0 1 1-1 0 1 1 0 1 0-2 0v.332q0 .613-.066 1.221A.5.5 0 0 1 6 8.447q.06-.555.06-1.115zm3.509 1a.5.5 0 0 1 .487.513 11.5 11.5 0 0 1-.587 3.339l-1.266 3.8a.5.5 0 0 1-.949-.317l1.267-3.8a10.5 10.5 0 0 0 .535-3.048A.5.5 0 0 1 9.569 8m-3.356 2.115a.5.5 0 0 1 .33.626L5.24 14.939a.5.5 0 1 1-.955-.296l1.303-4.199a.5.5 0 0 1 .625-.329"/>
-            <path d="M4.759 5.833A3.501 3.501 0 0 1 11.559 7a.5.5 0 0 1-1 0 2.5 2.5 0 0 0-4.857-.833.5.5 0 1 1-.943-.334m.3 1.67a.5.5 0 0 1 .449.546 10.7 10.7 0 0 1-.4 2.031l-1.222 4.072a.5.5 0 1 1-.958-.287L4.15 9.793a9.7 9.7 0 0 0 .363-1.842.5.5 0 0 1 .546-.449Zm6 .647a.5.5 0 0 1 .5.5c0 1.28-.213 2.552-.632 3.762l-1.09 3.145a.5.5 0 0 1-.944-.327l1.089-3.145c.382-1.105.578-2.266.578-3.435a.5.5 0 0 1 .5-.5Z"/>
-            <path d="M3.902 4.222a5 5 0 0 1 5.202-2.113.5.5 0 0 1-.208.979 4 4 0 0 0-4.163 1.69.5.5 0 0 1-.831-.556m6.72-.955a.5.5 0 0 1 .705-.052A4.99 4.99 0 0 1 13.059 7v1.5a.5.5 0 1 1-1 0V7a3.99 3.99 0 0 0-1.386-3.028.5.5 0 0 1-.051-.705M3.68 5.842a.5.5 0 0 1 .422.568q-.044.289-.044.59c0 .71-.1 1.417-.298 2.1l-1.14 3.923a.5.5 0 1 1-.96-.279L2.8 8.821A6.5 6.5 0 0 0 3.058 7q0-.375.054-.736a.5.5 0 0 1 .568-.422m8.882 3.66a.5.5 0 0 1 .456.54c-.084 1-.298 1.986-.64 2.934l-.744 2.068a.5.5 0 0 1-.941-.338l.745-2.07a10.5 10.5 0 0 0 .584-2.678.5.5 0 0 1 .54-.456"/>
-            <path d="M4.81 1.37A6.5 6.5 0 0 1 14.56 7a.5.5 0 1 1-1 0 5.5 5.5 0 0 0-8.25-4.765.5.5 0 0 1-.5-.865m-.89 1.257a.5.5 0 0 1 .04.706A5.48 5.48 0 0 0 2.56 7a.5.5 0 0 1-1 0c0-1.664.626-3.184 1.655-4.333a.5.5 0 0 1 .706-.04ZM1.915 8.02a.5.5 0 0 1 .346.616l-.779 2.767a.5.5 0 1 1-.962-.27l.778-2.767a.5.5 0 0 1 .617-.346m12.15.481a.5.5 0 0 1 .49.51c-.03 1.499-.161 3.025-.727 4.533l-.07.187a.5.5 0 0 1-.936-.351l.07-.187c.506-1.35.634-2.74.663-4.202a.5.5 0 0 1 .51-.49"/>
-        </svg>
     </div>
 </div>
 
 <script>
-(function bindUIEvents() {
-    // App Navigation Tabs (لو لسه بتستخدمهم)
-    document.getElementById('tabActive')?.addEventListener('click', () => changeView('active'));
-    document.getElementById('tabAzkar')?.addEventListener('click', () => changeView('azkar'));
-    document.getElementById('tabMushaf')?.addEventListener('click', () => changeView('mushaf'));
-    document.getElementById('tabFiles')?.addEventListener('click', () => changeView('files'));
-    document.getElementById('tabHistory')?.addEventListener('click', () => changeView('history'));
-
-    // Fingerprint
-    document.getElementById('fingerprint-btn')?.addEventListener('click', incrementSelectedZikr);
-})();
-
-const SB_URL = "https://ixzuotmqgdnlrkalwyyg.supabase.co", SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml4enVvdG1xZ2RubHJrYWx3eXlnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU1NDAwMTQsImV4cCI6MjA5MTExNjAxNH0.NrU4rKVfrHWB0x220iIGzr-aXGm_5EljV4CCoYFnojo";
+// 1. إعداد Supabase
+const SB_URL = "https://ixzuotmqgdnlrkalwyyg.supabase.co", 
+      SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml4enVvdG1xZ2RubHJrYWx3eXlnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU1NDAwMTQsImV4cCI6MjA5MTExNjAxNH0.NrU4rKVfrHWB0x220iIGzr-aXGm_5EljV4CCoYFnojo";
 const _supabase = supabase.createClient(SB_URL, SB_KEY);
 
-// ✅ ثبتنا اسم المستخدم هنا عشان الداتا ترجعلك على طول وميطلبش لوجين
-let currentUser = 'Mo'; 
-
-let currentView = 'mushaf', rawData = [], isAlarmActive = false, editingId = null, currentAlarmingNoteId = null, tempEditMedia = [];
-let azkarList = [], selectedZikrId = null, isAzkarFocusMode = false, currentAzkarCategory = null;
-
-// ==== متغيرات المصحف ====
-let currentMushafPage     = 1;
-let mushafMode            = 'reading';
-let quranBookmarks        = [];
-let mushafShowTranslation = false;
-let mushafViewMode        = 'text';
-let mushafZoom            = 24;
-let currentReciter        = 'Alafasy_128kbps';
-let currentAudio          = null;
-let mushafSurahList       = [];
-let pendingHighlight      = null;
-let ayahPickerSelectedSurah = 1;
-let isContinuousPlay = false; // هل التشغيل المتواصل شغال؟
-let stopAtEnd = 'surah'; // الخيارات: 'surah', 'juz', 'page'
-let nextAudio = null; // الكائن اللي هيشيل الآية اللي عليها الدور
-let currentSurahPlaying = null;
-
-const SURAH_PAGES = [
-    1, 2, 50, 77, 106, 128, 151, 177, 187, 208, 221, 235, 249, 255, 262, 267, 282, 293, 305, 312, 322, 332, 342, 350, 359, 367, 377, 385, 396, 404,
-    411, 415, 418, 428, 434, 440, 446, 453, 458, 467, 477, 483, 489, 496, 499, 502, 507, 511, 515, 518, 520, 523, 526, 528, 531, 534, 537, 542, 545, 549,
-    551, 553, 554, 556, 558, 560, 562, 564, 566, 568, 570, 572, 574, 575, 577, 578, 580, 582, 583, 585, 587, 589, 591, 593, 594, 595, 596, 597, 598, 599,
-    600, 601, 601, 602, 602, 603, 603, 604, 604, 604, 600, 601, 601, 602, 602, 603, 603, 604, 604, 604, 604, 604, 604, 604
-];
-
-const JUZ_NAMES = [
-    'الم','سيقول','تلك الرسل','لن تنالوا','والمحصنات',
-    'لا يحب الله','وإذا سمعوا','ولو أننا','قال الملأ','واعلموا',
-    'يعتذرون','وما من دابة','وما أبرئ','ربما','سبحان الذي',
-    'قال ألم','اقترب','قد أفلح','وقال الذين','أمن خلق',
-    'اتل ما أوحي','ومن يقنت','وما لي','فمن أظلم','إليه يرد',
-    'حم','قال فما خطبكم','قد سمع الله','تبارك الذي','عم يتساءلون'
-];
-
-const RECITERS_SURAH = {
-'https://media.way2quran.com/mustafa-khamis/hafs-an-asim/': '🎙️ مصطفى خميس',
-'https://server11.mp3quran.net/hatem/': '🎙️ حاتم فريد الواعر',
-    'https://server12.mp3quran.net/s_said/': '🎙️ سيد سعيد',
-    'https://server12.mp3quran.net/ahmed_hadr/': '🎙️ أحمد ديبان (حدر)'
-};
-
-const RECITERS_AYAH = {
-    'Minshawi_Murattal_128kbps'          : '🎙️ المنشاوي (مرتل)',
-    'Minshawy_Mujawwad_128kbps'         : '🎙️ المنشاوي (مجود)',
-    'Husary_128kbps'                    : '🎙️ الحصري (مرتل)',
-    'Husary_Mujawwad_128kbps'           : '🎙️ الحصري (مجود)',
-    'Abdul_Basit_Mujawwad_128kbps'      : '🎙️ عبد الباسط (مجود)',
-    'AbdulSamad_128kbps'                : '🎙️ عبد الباسط (مرتل)',
-    'Alafasy_128kbps'                   : '🎙️ مشاري العفاسي',
-    'Maher_AlMuaiqly_128kbps'           : '🎙️ ماهر المعيقلي',
-    'Mohammad_al_Tablaway_128kbps'      : '🎙️ محمد محمود الطبلاوي',
-    'Banna_32kbps'                      : '🎙️ محمود علي البنا',
-    'Mustafa_Ismail_48kbps'             : '🎙️ مصطفى إسماعيل',
-    'Yasser_Ad-Dussary_128kbps'         : '🎙️ ياسر الدوسري',
-    'Abdurrahmaan_As-Sudais_192kbps'    : '🎙️ عبد الرحمن السديس',
-    'Saood_ash-Shuraym_128kbps'         : '🎙️ سعود الشريم',
-    'Ahmed_ibn_Ali_al-Ajamy_128kbps_NEW': '🎙️ أحمد العجمي',
-    'Nasser_Alqatami_128kbps'           : '🎙️ ناصر القطامي',
-    'Muhammad_Ayyoob_128kbps'           : '🎙️ محمد أيوب',
-    'Abu_Bakr_Ash-Shaatree_128kbps'     : '🎙️ أبوبكر الشاطري'
-};
-
-const JUZ_PAGES = [
-     1, 22, 42, 62, 82,102,121,142,162,182,
-    201,221,241,261,282,302,322,342,362,382,
-    402,422,442,462,482,502,522,542,562,582
-];
-
-function getJuzFromPage(page) {
-    let juz = 1;
-    for (let i = 0; i < JUZ_PAGES.length; i++) {
-        if (page >= JUZ_PAGES[i]) juz = i + 1; else break;
-    }
-    return juz;
-}
-
-// ============================================================
-// ✅ التهيئة (بدون صفحة تسجيل الدخول)
-// ============================================================
-// إظهار اسمك بالألوان فوق
-const colors = ['#ff851b', '#2ecc71', '#3498db', '#9b59b6', '#f1c40f', '#e74c3c'];
-let coloredName = ''; 
-const firstName = currentUser.split(' ')[0];
-for(let i=0; i < firstName.length; i++) {
-    coloredName += `<span class="${i===0?'animated-letter':''}" style="color:${colors[i%colors.length]}">${i===0?firstName[i].toUpperCase():firstName[i]}</span>`;
-}
-document.getElementById('user-avatar-text').innerHTML = coloredName;
-
-// جلب الإعدادات من سوبابيز فوراً عند الدخول لضمان المزامنة الفورية
-_supabase.from('user_mushaf_settings')
-    .select('*')
-    .eq('owner_name', currentUser)
-    .maybeSingle()
-    .then(({data, error}) => {
-        if(data && !error) {
-            localStorage.setItem('mushaf_last_page_reading', data.last_page_reading);
-            localStorage.setItem('mushaf_last_page_tahajjud', data.last_page_tahajjud);
-            if (data.last_reciter) currentReciter = data.last_reciter;
-            renderMushafSelector(); 
-        }
-    });
-
-// فتح المصحف مباشرة
-changeView('mushaf');
-
-// ============================================================
-// دالة تغيير التابات وإظهار الأقسام
-// ============================================================
-function changeView(v) {
-    currentView = v;
-    isAzkarFocusMode = false;
+// 2. 🛠️ جلب اليوزر من الداتا (رابط أو كاش)
+function getAppUser() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const userFromUrl = urlParams.get('user'); 
+    if (userFromUrl) return userFromUrl;
     
-    const fuzzySearch = document.getElementById('fuzzySearch');
-    if(fuzzySearch) fuzzySearch.value = '';
-
-    const tabs = { 'active': 'tabActive', 'azkar': 'tabAzkar', 'mushaf': 'tabMushaf', 'files': 'tabFiles', 'history': 'tabHistory' };
-    Object.keys(tabs).forEach(key => {
-        const btn = document.getElementById(tabs[key]);
-        if (btn) {
-            if (v === key) btn.classList.add('active');
-            else btn.classList.remove('active');
-        }
-    });
-
-    const sections = ['notes-section', 'azkar-section', 'mushaf-section', 'files-section'];
-    sections.forEach(s => {
-        const el = document.getElementById(s);
-        if (el) el.style.display = 'none';
-    });
-
-    const entryForm = document.getElementById('entryForm');
-    if (entryForm) entryForm.style.display = (v === 'active') ? 'block' : 'none';
-
-    if(fuzzySearch) fuzzySearch.style.display = (v === 'azkar' || v === 'files' || v === 'mushaf') ? 'none' : 'block';
-    const fp = document.getElementById('fingerprint-container');
-    if(fp) fp.style.display = 'none';
-
-    const targetId = (v === 'active' || v === 'history') ? 'notes-section' : v + '-section';
-    const targetEl = document.getElementById(targetId);
-    if (targetEl) targetEl.style.display = 'flex';
-
-    setTimeout(() => {
-        if (v === 'files' && typeof fetchFiles === 'function') {
-            fetchFiles();
-        } else if (v === 'azkar' && typeof fetchAzkar === 'function') {
-            if (!currentAzkarCategory) {
-                document.getElementById('category-selector').style.display = 'grid';
-                document.getElementById('azkar-list-view').style.display = 'none';
-            } else { fetchAzkar(); }
-        } else if (v === 'mushaf') {
-            renderMushafSelector();
-        } else if (typeof fetchNotes === 'function') {
-            fetchNotes();
-        }
-    }, 50);
+    // لو مفيش في الرابط، بنجيبه من الـ localStorage اللي تطبيقك بيخزن فيه 'mouser'
+    return localStorage.getItem('mouser') || 'Guest'; 
 }
 
-// وباقي الكود بتاعك بتاع المصحف والبحث والأذكار... 
-// ضيف كل الدوال بتاعتك تحت هنا زي (openMushaf, renderMushaf, fetchQuranBookmarks, إلخ)
+let currentUser = getAppUser();
+
+// 3. وظيفة التهيئة عند الفتح
+async function initMushafApp() {
+    // تحديث الاسم الملون في الهيدر بناءً على اليوزر الحالي
+    const colors = ['#ff851b', '#2ecc71', '#3498db', '#9b59b6', '#f1c40f', '#e74c3c'];
+    let coloredName = ''; 
+    const displayName = currentUser.split(' ')[0];
+    displayName.split('').forEach((char, i) => {
+        coloredName += `<span class="${i===0?'animated-letter':''}" style="color:${colors[i%colors.length]}">${char.toUpperCase()}</span>`;
+    });
+    const avatarEl = document.getElementById('user-avatar-text');
+    if(avatarEl) avatarEl.innerHTML = coloredName;
+
+    // جلب بيانات السور والمزامنة مع Supabase
+    await fetchSurahList();
+    const { data } = await _supabase.from('user_mushaf_settings').select('*').eq('owner_name', currentUser).maybeSingle();
+    if(data) {
+        localStorage.setItem('mushaf_last_page_reading', data.last_page_reading);
+        localStorage.setItem('mushaf_last_page_tahajjud', data.last_page_tahajjud);
+        if (data.last_reciter) currentReciter = data.last_reciter;
+    }
+    
+    // رندر الاختيارات الملونة (قراءة / تهجد)
+    renderMushafSelector();
+}
 
 function renderMushafSelector() {
     const sel = document.getElementById('mushaf-selector');
     if (!sel) return;
 
-    const lastReading  = localStorage.getItem('mushaf_last_page_reading')  || 1;
-    const lastTahajjud = localStorage.getItem('mushaf_last_page_tahajjud') || 1;
+    const lastR = localStorage.getItem('mushaf_last_page_reading') || 1;
+    const lastT = localStorage.getItem('mushaf_last_page_tahajjud') || 1;
 
     sel.innerHTML = `
-        <div id="card-reading" class="category-box"
-            style="border-color:#27ae60;display:flex;flex-direction:column;
-            align-items:center;gap:6px;cursor:pointer;
-            touch-action:manipulation;-webkit-tap-highlight-color:rgba(0,0,0,0.1);">
+        <div id="card-reading" class="category-box" style="border-color:#27ae60; display:flex; flex-direction:column; align-items:center; gap:6px;">
             <span style="font-size:30px;">📖</span>
             <span style="font-weight:bold;">مصحف القراءة</span>
-            <span style="font-size:11px;opacity:0.6;">آخر صفحة: ${lastReading}</span>
+            <span style="font-size:11px;opacity:0.6;">آخر صفحة: ${lastR}</span>
         </div>
-        <div id="card-tahajjud" class="category-box"
-            style="border-color:#8e44ad;background:#f5eeff;display:flex;
-            flex-direction:column;align-items:center;gap:6px;cursor:pointer;
-            touch-action:manipulation;-webkit-tap-highlight-color:rgba(0,0,0,0.1);">
+        <div id="card-tahajjud" class="category-box" style="border-color:#8e44ad; background:#f5eeff; display:flex; flex-direction:column; align-items:center; gap:6px;">
             <span style="font-size:30px;">🌙</span>
             <span style="font-weight:bold;">مصحف التهجد</span>
-            <span style="font-size:11px;opacity:0.6;">آخر صفحة: ${lastTahajjud}</span>
+            <span style="font-size:11px;opacity:0.6;">آخر صفحة: ${lastT}</span>
         </div>
     `;
 
-    document.getElementById('card-reading') .addEventListener('click', () => openMushaf('reading'));
-    document.getElementById('card-tahajjud').addEventListener('click', () => openMushaf('tahajjud'));
+    document.getElementById('card-reading').onclick = () => openMushaf('reading');
+    document.getElementById('card-tahajjud').onclick = () => openMushaf('tahajjud');
 
-    if (typeof renderBookmarksPreview === 'function') {
-        renderBookmarksPreview();
+    renderBookmarksPreview();
+}
+
+// 4. الدوال الأساسية لجلب البيانات
+async function fetchSurahList() {
+    if (mushafSurahList.length > 0) return;
+    try {
+        const res = await fetch('https://api.alquran.cloud/v1/surah');
+        const json = await res.json();
+        if (json.code === 200) mushafSurahList = json.data;
+    } catch(e) { console.error("Surah fetch error", e); }
+}
+
+async function fetchQuranBookmarks() {
+    if (!currentUser || currentUser === 'Guest') return;
+    try {
+        const { data } = await _supabase.from('quran_bookmarks')
+            .select('*')
+            .eq('owner_name', currentUser)
+            .order('created_at', { ascending: false });
+        if (data) quranBookmarks = data;
+    } catch(e) { console.error("Bookmarks fetch error", e); }
+}
+
+function handleBack() {
+    if (document.getElementById('mushaf-overlay')) {
+        closeMushaf();
+    } else {
+        // إرسال رسالة للتطبيق الأب (الرئيسي) ليغلق الـ Iframe
+        if(window.parent) window.parent.postMessage('closeMushaf', '*');
     }
 }
+
+// تشغيل التطبيق عند تحميل الصفحة
+window.onload = initMushafApp;
+
+// ============================================================
+// ✅ متغيرات المصحف
+// ============================================================
 let currentMushafPage     = 1;
 let mushafMode            = 'reading';
 let quranBookmarks        = [];
@@ -431,9 +162,7 @@ let pendingHighlight      = null;
 let ayahPickerSelectedSurah = 1;
 let isContinuousPlay = false; // هل التشغيل المتواصل شغال؟
 let stopAtEnd = 'surah'; // الخيارات: 'surah', 'juz', 'page'
-// استبدل المصفوفة دي في كودك يا Mo
-let nextAudio = null; // الكائن اللي هيشيل الآية اللي عليها الدور
-let currentSurahPlaying = null;
+let nextAudio = null; // الكائن اللي هيشيل الآية اللي عليها الدورlet currentSurahPlaying = null;
 const SURAH_PAGES = [
     1, 2, 50, 77, 106, 128, 151, 177, 187, 208, 221, 235, 249, 255, 262, 267, 282, 293, 305, 312, 322, 332, 342, 350, 359, 367, 377, 385, 396, 404,
     411, 415, 418, 428, 434, 440, 446, 453, 458, 467, 477, 483, 489, 496, 499, 502, 507, 511, 515, 518, 520, 523, 526, 528, 531, 534, 537, 542, 545, 549,
@@ -2819,6 +2548,10 @@ window.navTo                  = (p) => {
     if (document.getElementById('mushaf-overlay')) renderMushaf();
     else openMushaf(mushafMode);
 };
+</script>
+</body>
+</html>
+
 </script>
 </body>
 </html>
