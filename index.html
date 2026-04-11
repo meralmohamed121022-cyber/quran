@@ -597,7 +597,7 @@ function renderMushaf() {
     document.getElementById('mushaf-search-input').addEventListener('input', function() { mushafFuzzySearch(this.value); });
     document.getElementById('page-jump-input').addEventListener('change', function() { jumpMushafPage(this.value); });
 
-    // ✅ ربط زرار Play الرئيسي (ذكاء اصطناعي للتهجد)
+    // ✅ ربط زرار Play الرئيسي
     document.getElementById('btn-main-play').addEventListener('click', function() {
         const icon = document.getElementById('main-play-icon');
         
@@ -607,9 +607,7 @@ function renderMushaf() {
             document.getElementById('btn-stop-audio').style.display = 'none';
         } else {
             let surahNum = 1;
-            
             if (mushafMode === 'tahajjud') {
-                // الفهرس الموضوعي للتهجد
                 const tahajjudIndex = {
                     1: 1, 2: 2, 14: 3, 20: 4, 28: 5, 33: 6, 39: 7, 45: 8, 48: 9, 53: 10,
                     56: 11, 60: 12, 63: 13, 65: 14, 67: 15, 68: 16, 72: 17, 74: 18, 77: 19, 79: 20,
@@ -627,10 +625,7 @@ function renderMushaf() {
                 };
                 const pages = Object.keys(tahajjudIndex).map(Number).sort((a,b) => b-a);
                 for (let p of pages) {
-                    if (currentMushafPage >= p) {
-                        surahNum = tahajjudIndex[p];
-                        break;
-                    }
+                    if (currentMushafPage >= p) { surahNum = tahajjudIndex[p]; break; }
                 }
             } else {
                 const firstAyahBtn = document.querySelector('.ayah-num-btn');
@@ -668,6 +663,10 @@ function renderMushaf() {
     });
 
     localStorage.setItem(`mushaf_last_page_${mushafMode}`, currentMushafPage);
+
+    // ✅ إخفاء/إظهار أزرار التهجد حسب الوضع
+    _updateTahajjudToolbar(mushafMode === 'tahajjud');
+
     loadPageText(currentMushafPage);
 
     // سحب الصفحة (Swipe)
@@ -677,8 +676,7 @@ function renderMushaf() {
         let sx = 0;
         pc.addEventListener('touchstart', e => sx = e.touches[0].clientX, { passive: true });
         pc.addEventListener('touchend', e => {
-                if (window._tahajjudIsFS) return; // ← لو فل سكرين: أوقف السويب تماماً
-
+            if (window._tahajjudIsFS) return;
             const dx = e.changedTouches[0].clientX - sx;
             if (Math.abs(dx) > 70) dx > 0 ? changeMushafPage(1) : changeMushafPage(-1);
         }, { passive: true });
@@ -725,7 +723,16 @@ function updatePageMeta(ayahs) {
 // ✅ جلب نص الصفحة - مع معالجة أحداث اللمس والضغط (Optimized for Android)
 // ============================================================
 // ─── دوال مساعدة للتهجد — عرّفها مرة واحدة خارج loadPageText ──────────────────
-
+function _updateTahajjudToolbar(isTahajjud) {
+    // إخفاء شريط الزوم — نوصله عن طريق الـ input اللي جواه
+    const zoomInput = document.getElementById('zoom-range-input');
+    if (zoomInput?.parentElement) {
+        zoomInput.parentElement.style.display = isTahajjud ? 'none' : '';
+    }
+    // إخفاء زرار وضع الصور
+    const btnViewMode = document.getElementById('btn-view-mode');
+    if (btnViewMode) btnViewMode.style.display = isTahajjud ? 'none' : '';
+}
 function toggleTahajjudFS() {
     const el = document.getElementById('tahajjud-wrapper');
     const isFs = !!(document.fullscreenElement || document.webkitFullscreenElement);
@@ -874,16 +881,19 @@ async function loadPageText(pageNum, retryCount = 0) {
         return;
     }
 
-    // ============================================================
+      // ============================================================
     // 📖 الجزء الخاص بمصحف القراءة (API) - بدون أي تغيير
     // ============================================================
     try {
+        _updateTahajjudToolbar(false); // ← أظهر الأزرار ✅
+
         const ctrl  = new AbortController();
         const timer = setTimeout(() => ctrl.abort(), 10000);
 
         const requests = [
             fetch(`https://api.alquran.cloud/v1/page/${pageNum}/quran-uthmani`, { signal: ctrl.signal })
         ];
+        // ... باقي الكود
 
         if (typeof mushafShowTranslation !== 'undefined' && mushafShowTranslation) {
             requests.push(fetch(`https://api.alquran.cloud/v1/page/${pageNum}/en.sahih`, { signal: ctrl.signal }));
